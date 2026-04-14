@@ -1,0 +1,70 @@
+:root {
+  color-scheme: light;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  --color-page-text: #17304a;
+  --color-page-inverse: #ffffff;
+  --color-bg-start: #0a111a;
+  --color-bg-mid: #121b28;
+  --color-bg-end: #182434;
+  --color-accent: #6ecfcd;
+  --color-accent-muted: #45c4c5;
+  --color-accent-strong: #4eb0b4;
+  --color-link-muted: #4a8fae;
+  --color-surface-border: #7ba8c9;
+  --color-surface-border-strong: #84aacd;
+  --color-surface-light: #e8f1fa;
+  --color-stage-surface: #d0e2f2;
+  --color-overlay-backdrop: #10171f;
+  --color-overlay-surface: #fffaf0;
+  --color-shadow-deep: #080e16;
+  --color-shadow-card: #0a111a;
+  --color-subtitle: #2f5168;
+  --gradient-page-glow: radial-gradient(circle at top, rgba(69, 196, 197, 0.14), rgba(69, 196, 197, 0) 32%);
+  --gradient-page-base: linear-gradient(180deg, var(--color-bg-start) 0%, var(--color-bg-mid) 42%, var(--color-bg-end) 100%);
+  --gradient-track-menu: linear-gradient(180deg, rgba(18, 27, 40, 0.92), rgba(24, 36, 52, 0.86));
+  --gradient-track-menu-active: linear-gradient(180deg, rgba(78, 176, 180, 0.28), rgba(74, 143, 174, 0.16));
+  --gradient-stage: linear-gradient(180deg, rgba(208, 226, 242, 0.18), rgba(255, 255, 255, 0.04));
+  --shadow-track-menu: 0 18px 48px rgba(8, 14, 22, 0.28);
+  --shadow-stage: 0 24px 70px rgba(23, 48, 74, 0.2);
+  --shadow-overlay-card: 0 24px 70px rgba(10, 17, 26, 0.28);
+  --border-track-menu: 1px solid rgba(123, 168, 201, 0.16);
+  --border-track-menu-item: 1px solid rgba(132, 170, 205, 0.14);
+  --border-track-menu-item-hover: rgba(110, 207, 205, 0.45);
+  --border-track-menu-item-active: rgba(110, 207, 205, 0.75);
+  --border-stage: 3px solid rgba(23, 48, 74, 0.25);
+  --border-pill: 1px solid rgba(132, 170, 205, 0.2);
+  --surface-track-menu-item: rgba(232, 241, 250, 0.08);
+  --surface-track-menu-item-hover: rgba(232, 241, 250, 0.12);
+  --surface-copy-muted: rgba(232, 241, 250, 0.82);
+  --surface-overlay-backdrop: rgba(16, 23, 31, 0.34);
+  --surface-overlay-card: rgba(255, 250, 239, 0.95);
+  --surface-pill: rgba(232, 241, 250, 0.25);
+  background:
+    var(--gradient-page-glow),
+    var(--gradient-page-base);
+  color: var(--color-page-text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: transparent;
+  color: var(--color-page-inverse);
+}
+
+#app {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+@media (max-width: 720px) {
+  #app {
+    padding: 12px;
+  }
+}

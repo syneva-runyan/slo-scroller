@@ -1,0 +1,78 @@
+.game-shell {
+  width: min(100%, 1360px);
+  display: grid;
+  gap: 16px;
+}
+
+.game-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 290px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.game-menu {
+  min-width: 0;
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.game-title {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 0.9;
+  letter-spacing: 0.03em;
+}
+
+.game-subtitle {
+  margin: 0;
+  max-width: 48rem;
+  font-size: 1rem;
+}
+
+.game-stage {
+  position: relative;
+  border: var(--border-stage);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--shadow-stage);
+  background: var(--gradient-stage);
+}
+
+.game-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.game-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+}
+
+.game-pill {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--surface-pill);
+  border: var(--border-pill);
+}
+
+@media (max-width: 720px) {
+  .game-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .game-stage {
+    border-radius: 18px;
+  }
+}

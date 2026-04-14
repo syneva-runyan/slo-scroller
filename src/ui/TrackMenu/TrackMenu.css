@@ -1,0 +1,101 @@
+.track-menu {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 24px;
+  background: var(--gradient-track-menu);
+  border: var(--border-track-menu);
+  box-shadow: var(--shadow-track-menu);
+}
+
+.track-menu-header {
+  display: grid;
+  gap: 8px;
+}
+
+.track-menu-kicker {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.track-menu-title {
+  margin: 0;
+  font-size: 1.65rem;
+  line-height: 1.05;
+}
+
+.track-menu-copy {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--surface-copy-muted);
+}
+
+.track-menu-list {
+  display: grid;
+  gap: 12px;
+}
+
+.track-menu-item {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 14px 16px;
+  border: var(--border-track-menu-item);
+  border-radius: 18px;
+  background: var(--surface-track-menu-item);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.track-menu-item:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-track-menu-item-hover);
+  background: var(--surface-track-menu-item-hover);
+}
+
+.track-menu-item.is-active {
+  border-color: var(--border-track-menu-item-active);
+  background: var(--gradient-track-menu-active);
+}
+
+.track-menu-item-title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.track-menu-item-copy {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--surface-copy-muted);
+}
+
+.track-menu-item-meta {
+  font-size: 0.82rem;
+  color: var(--color-accent);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .track-menu {
+    border-radius: 18px;
+  }
+
+  .track-menu-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .track-menu-item {
+    padding: 12px;
+  }
+
+  .track-menu-item-copy {
+    display: none;
+  }
+}
