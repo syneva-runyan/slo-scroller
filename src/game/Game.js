@@ -16,6 +16,7 @@ const HEIGHT = 720;
 const GROUND_Y = 560;
 const MAX_DELTA_SECONDS = 0.033;
 const PLAYER_X = 180;
+const HAMMER_STRIKE_SECONDS = 0.24;
 
 export class Game {
   constructor(container) {
@@ -39,13 +40,14 @@ export class Game {
         <div class="game-stage"></div>
       </div>
       <footer class="game-footer">
-        <div class="game-pill">Control: press Space to jump</div>
+        <div class="game-pill game-controls-pill">Control: press Space to jump</div>
         <div class="game-pill">Boilerplate: Vite + canvas + mostly vanilla JS</div>
       </footer>
     `;
 
     this.menuContainer = this.shell.querySelector('.game-menu');
     this.stage = this.shell.querySelector('.game-stage');
+    this.controlsPill = this.shell.querySelector('.game-controls-pill');
     this.stage.append(this.canvas);
     this.container.append(this.shell);
 
@@ -82,6 +84,7 @@ export class Game {
     this.flashTimer = 0;
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
+    this.hammerStrike = null;
   }
 
   start() {
@@ -107,6 +110,13 @@ export class Game {
   update(deltaSeconds, time) {
     this.elapsedSeconds = updateElapsedSeconds(this.elapsedSeconds, deltaSeconds, this.state);
     this.powerTripTimer = Math.max(0, this.powerTripTimer - deltaSeconds);
+    const currentTrack = this.levelManager.getCurrentTrack();
+    if (this.hammerStrike) {
+      this.hammerStrike.timer = Math.max(0, this.hammerStrike.timer - deltaSeconds);
+      if (this.hammerStrike.timer === 0) {
+        this.hammerStrike = null;
+      }
+    }
 
     if (this.input.consumeJump()) {
       if (this.state === 'menu') {
@@ -114,7 +124,11 @@ export class Game {
       } else if (this.state === 'level-intro') {
         this.beginLevel(time);
       } else if (this.state === 'playing') {
-        this.player.jump();
+        if (currentTrack.id === 'error-budget') {
+          this.startHammerSwing();
+        } else {
+          this.player.jump();
+        }
       } else if (this.state === 'level-complete') {
         if (this.levelManager.advance()) {
           this.state = 'level-intro';
@@ -134,7 +148,7 @@ export class Game {
     }
 
     const level = this.levelManager.getCurrentLevel();
-    const track = this.levelManager.getCurrentTrack();
+  const track = currentTrack;
     this.distance += level.scrollSpeed * deltaSeconds;
     this.spawnCooldown -= deltaSeconds;
     this.flashTimer = Math.max(0, this.flashTimer - deltaSeconds);
@@ -152,9 +166,19 @@ export class Game {
     }
 
     this.obstacles = this.obstacles.filter((obstacle) => !obstacle.isOffscreen());
+    const hammerBounds = track.id === 'error-budget' ? this.getHammerBounds() : null;
 
     for (const obstacle of this.obstacles) {
       if (obstacle.hit) {
+        continue;
+      }
+
+      if (hammerBounds && intersects(hammerBounds, obstacle.getBounds())) {
+        obstacle.hit = true;
+        obstacle.squashTimer = HAMMER_STRIKE_SECONDS;
+        this.hammerStrike.connected = true;
+        this.hammerStrike.targetX = obstacle.x + obstacle.width * 0.5;
+        this.hammerStrike.targetY = obstacle.groundY - obstacle.height * 0.45;
         continue;
       }
 
@@ -183,6 +207,12 @@ export class Game {
   render() {
     const level = this.levelManager.getCurrentLevel();
     const track = this.levelManager.getCurrentTrack();
+    if (this.controlsPill) {
+      this.controlsPill.textContent =
+        track.id === 'error-budget'
+          ? 'Control: press Space to swing the hammer'
+          : 'Control: press Space to jump';
+    }
     const overlay = this.hud.getOverlay({
       state: this.state,
       level,
@@ -205,6 +235,7 @@ export class Game {
       breaches: this.breaches,
       flashTimer: this.flashTimer,
       powerTripTimer: this.powerTripTimer,
+      hammerStrike: this.hammerStrike,
       track,
       elapsedSeconds: this.elapsedSeconds,
     });
@@ -229,6 +260,7 @@ export class Game {
     this.flashTimer = 0;
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
+    this.hammerStrike = null;
     this.player.reset();
   }
 
@@ -247,6 +279,34 @@ export class Game {
     );
   }
 
+  startHammerSwing() {
+    if (this.hammerStrike) {
+      return;
+    }
+
+    this.hammerStrike = {
+      timer: HAMMER_STRIKE_SECONDS,
+      duration: HAMMER_STRIKE_SECONDS,
+      connected: false,
+      targetX: null,
+      targetY: null,
+    };
+  }
+
+  getHammerBounds() {
+    if (!this.hammerStrike || this.hammerStrike.connected) {
+      return null;
+    }
+
+    const progress = 1 - this.hammerStrike.timer / this.hammerStrike.duration;
+    return {
+      x: this.player.x + 28,
+      y: this.player.y - 18,
+      width: 92 + progress * 54,
+      height: 132,
+    };
+  }
+
   selectTrack(trackId) {
     const didSelect = this.levelManager.selectTrack(trackId);
     if (!didSelect) {
@@ -261,6 +321,7 @@ export class Game {
     this.flashTimer = 0;
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
+    this.hammerStrike = null;
     this.player.reset();
   }
 }

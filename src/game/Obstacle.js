@@ -8,10 +8,12 @@ export class Obstacle {
     this.label = label;
     this.kind = kind;
     this.hit = false;
+    this.squashTimer = 0;
   }
 
   update(deltaSeconds, scrollSpeed) {
     this.x -= scrollSpeed * deltaSeconds;
+    this.squashTimer = Math.max(0, this.squashTimer - deltaSeconds);
   }
 
   isOffscreen() {

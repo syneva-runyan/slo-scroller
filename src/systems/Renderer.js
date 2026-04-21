@@ -18,8 +18,13 @@ export class Renderer {
     this.drawBackground(scene.distance, scene.track, scene.powerTripTimer);
     this.drawGround(scene.distance);
     this.drawFinishMarker(scene.timeRemaining, scene.level.scrollSpeed);
-    this.drawObstacles(scene.obstacles);
-    this.drawPlayer(scene.player, scene.state === 'playing' ? scene.flashTimer : 0);
+    this.drawObstacles(scene.obstacles, scene.track?.id === 'error-budget');
+    this.drawPlayer(
+      scene.player,
+      scene.state === 'playing' ? scene.flashTimer : 0,
+      scene.track,
+      scene.hammerStrike,
+    );
     this.drawHud(scene);
 
     ctx.save();
@@ -128,7 +133,7 @@ export class Renderer {
     ctx.fillRect(x + 12, this.groundY - 180, 70, 42);
   }
 
-  drawObstacles(obstacles) {
+  drawObstacles(obstacles, bugTrackActive = false) {
     const { ctx } = this;
 
     for (const obstacle of obstacles) {
@@ -146,13 +151,21 @@ export class Renderer {
         ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
       }
 
+      if (bugTrackActive) {
+        this.drawBugDetails(bounds, obstacle);
+      }
+
+      if (bugTrackActive && obstacle.squashTimer > 0) {
+        this.drawHammerImpact(bounds, obstacle.squashTimer);
+      }
+
       ctx.fillStyle = 'rgba(232, 242, 255, 0.92)';
       ctx.font = '16px Trebuchet MS';
       ctx.fillText(obstacle.label, bounds.x - 4, bounds.y - 10);
     }
   }
 
-  drawPlayer(player, flashTimer) {
+  drawPlayer(player, flashTimer, track, hammerStrike) {
     const { ctx } = this;
     const alpha = player.hitRecovery > 0 && Math.floor(player.hitRecovery * 14) % 2 === 0 ? 0.4 : 1;
     ctx.save();
@@ -167,6 +180,9 @@ export class Renderer {
     ctx.fillStyle = '#1e2f45';
     ctx.fillRect(player.x + 8, player.y + 72, 18, 24);
     ctx.fillRect(player.x + 42, player.y + 72, 18, 24);
+    if (track?.id === 'error-budget') {
+      this.drawHammer(player, hammerStrike);
+    }
     ctx.restore();
   }
 
@@ -195,7 +211,13 @@ export class Renderer {
     ctx.font = '16px Trebuchet MS';
     ctx.fillText(scene.level.targetLabel, 580, 86);
     ctx.fillText(`Time remaining: ${scene.timeRemaining.toFixed(1)}s`, 580, 112);
-    ctx.fillText('Press Space to jump, start, retry, or advance.', 580, 138);
+    ctx.fillText(
+      scene.track?.id === 'error-budget'
+        ? 'Press Space to hammer bugs, start, retry, or advance.'
+        : 'Press Space to jump, start, retry, or advance.',
+      580,
+      138,
+    );
   }
 
   drawRack(x, y, width, height, index, outageActive) {
@@ -354,6 +376,92 @@ export class Renderer {
       ctx.fillRect(bounds.x + bounds.width - 20, rowY + 5, 6, 6);
       ctx.fillStyle = color;
     }
+    ctx.restore();
+  }
+
+  drawBugDetails(bounds, obstacle) {
+    const { ctx } = this;
+    ctx.save();
+    ctx.globalAlpha = obstacle.hit ? 0.38 : 0.95;
+    ctx.fillStyle = '#1b2230';
+    ctx.beginPath();
+    ctx.ellipse(bounds.x + bounds.width * 0.42, bounds.y + bounds.height * 0.36, 7, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(bounds.x + bounds.width * 0.62, bounds.y + bounds.height * 0.36, 7, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#1b2230';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(bounds.x + bounds.width * 0.35, bounds.y + bounds.height * 0.32);
+    ctx.lineTo(bounds.x + bounds.width * 0.25, bounds.y + bounds.height * 0.22);
+    ctx.moveTo(bounds.x + bounds.width * 0.69, bounds.y + bounds.height * 0.32);
+    ctx.lineTo(bounds.x + bounds.width * 0.79, bounds.y + bounds.height * 0.22);
+    ctx.stroke();
+    ctx.fillStyle = '#fff7c2';
+    ctx.beginPath();
+    ctx.arc(bounds.x + bounds.width * 0.42, bounds.y + bounds.height * 0.36, 2.2, 0, Math.PI * 2);
+    ctx.arc(bounds.x + bounds.width * 0.62, bounds.y + bounds.height * 0.36, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawHammer(player, hammerStrike) {
+    const { ctx } = this;
+    const progress = hammerStrike ? 1 - hammerStrike.timer / hammerStrike.duration : 0;
+    const eased = 1 - (1 - progress) * (1 - progress);
+    const angle = hammerStrike ? -0.95 + eased * 2.1 : -0.42;
+
+    ctx.save();
+    ctx.translate(player.x + 54, player.y + 40);
+    ctx.rotate(angle);
+    ctx.fillStyle = '#7b4c20';
+    ctx.fillRect(-4, -2, 12, 58);
+    ctx.fillStyle = '#a86a2b';
+    ctx.fillRect(-2, 2, 8, 48);
+    ctx.fillStyle = '#b8c6d6';
+    ctx.fillRect(-14, -14, 30, 16);
+    ctx.fillStyle = '#7c8ca0';
+    ctx.fillRect(10, -14, 8, 16);
+    ctx.fillStyle = '#dbe7f2';
+    ctx.fillRect(-10, -10, 16, 6);
+    ctx.restore();
+
+    if (!hammerStrike || hammerStrike.targetX == null || hammerStrike.targetY == null) {
+      return;
+    }
+
+    const burst = 1 - hammerStrike.timer / hammerStrike.duration;
+    ctx.save();
+    ctx.strokeStyle = `rgba(255, 212, 102, ${1 - burst * 0.65})`;
+    ctx.lineWidth = 4;
+    for (let index = 0; index < 6; index += 1) {
+      const angleStep = (Math.PI * 2 * index) / 6;
+      const radius = 18 + burst * 18;
+      ctx.beginPath();
+      ctx.moveTo(hammerStrike.targetX, hammerStrike.targetY);
+      ctx.lineTo(
+        hammerStrike.targetX + Math.cos(angleStep) * radius,
+        hammerStrike.targetY + Math.sin(angleStep) * radius,
+      );
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  drawHammerImpact(bounds, squashTimer) {
+    const { ctx } = this;
+    const impactRatio = Math.max(0, Math.min(1, squashTimer / 0.24));
+    const pulse = 1 - impactRatio;
+    const centerX = bounds.x + bounds.width * 0.5;
+    const centerY = bounds.y + bounds.height * 0.42;
+
+    ctx.save();
+    ctx.fillStyle = `rgba(255, 206, 96, ${impactRatio * 0.5})`;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 18 + pulse * 16, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = `rgba(31, 39, 57, ${impactRatio * 0.75})`;
+    ctx.fillRect(bounds.x + bounds.width * 0.18, bounds.y + bounds.height * 0.54, bounds.width * 0.64, 8 + pulse * 8);
     ctx.restore();
   }
 }
