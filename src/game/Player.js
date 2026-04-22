@@ -1,5 +1,5 @@
-const GRAVITY = 1850;
-const JUMP_VELOCITY = -760;
+const GRAVITY = 1725;
+const JUMP_VELOCITY = -790;
 const HIT_RECOVERY_SECONDS = 1.1;
 
 export class Player {

@@ -14,6 +14,16 @@ const levelTracks = [
     ],
   },
   {
+    id: 'availability-lab',
+    label: 'Availability Lab',
+    description: 'Experiment with rolling windows.',
+    hiddenFromMenu: true,
+    parentTrackId: 'availability',
+    levels: [
+      { id: 'availability-lab-1', title: 'Availability Lab 1' },
+    ],
+  },
+  {
     id: 'latency',
     label: 'Latency',
     description: 'Track response time goals.',
@@ -35,7 +45,7 @@ test('LevelManager exposes the active track in track menu items', () => {
       description: 'Track availability goals.',
       levelCount: 2,
       active: true,
-      progressLabel: 'Level 1 of 2',
+      progresSLObel: 'Level 1 of 2',
     },
     {
       id: 'latency',
@@ -43,9 +53,39 @@ test('LevelManager exposes the active track in track menu items', () => {
       description: 'Track response time goals.',
       levelCount: 3,
       active: false,
-      progressLabel: '3 levels',
+      progresSLObel: '3 levels',
     },
   ]);
+});
+
+test('LevelManager hides lab tracks from the menu and marks the parent active while in experiment mode', () => {
+  const manager = new LevelManager(levelTracks);
+  manager.selectTrack('availability-lab');
+
+  assert.deepEqual(manager.getTrackMenuItems(), [
+    {
+      id: 'availability',
+      label: 'Availability',
+      description: 'Track availability goals.',
+      levelCount: 2,
+      active: true,
+      progresSLObel: 'Experiment mode',
+    },
+    {
+      id: 'latency',
+      label: 'Latency',
+      description: 'Track response time goals.',
+      levelCount: 3,
+      active: false,
+      progresSLObel: '3 levels',
+    },
+  ]);
+
+  assert.deepEqual(manager.getTrackMenuContext(), {
+    activeTrack: levelTracks[0],
+    experimentTrack: levelTracks[1],
+    experimentActive: true,
+  });
 });
 
 test('LevelManager advances until the final level and then stops', () => {

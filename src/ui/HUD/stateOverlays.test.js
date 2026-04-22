@@ -11,7 +11,7 @@ import {
 test('buildMenuOverlay includes the selected track label and level count', () => {
   const overlay = buildMenuOverlay({ label: 'Availability' }, 3);
 
-  assert.equal(overlay.title, 'Run the SLA lane');
+  assert.equal(overlay.title, 'Run the SLO lane');
   assert.equal(overlay.subtitle, 'Track selected: Availability (3 levels)');
   assert.match(overlay.body, /Availability, Response Time, and Error Budget/);
 });
@@ -31,7 +31,7 @@ test('buildLevelCompleteOverlay pluralizes breaches and changes CTA on the last 
   );
 
   assert.match(earlyOverlay.body, /2 breaches/);
-  assert.equal(earlyOverlay.cta, 'Press Space to load the next SLA.');
+  assert.equal(earlyOverlay.cta, 'Press Space to load the next SLO.');
   assert.match(finalOverlay.body, /1 breach,/);
   assert.equal(finalOverlay.cta, 'Press Space to view the campaign summary.');
 });
@@ -39,7 +39,7 @@ test('buildLevelCompleteOverlay pluralizes breaches and changes CTA on the last 
 test('buildFailedOverlay singularizes the breach count when only one is allowed', () => {
   const overlay = buildFailedOverlay({ title: 'Response Time II', allowedBreaches: 1 });
 
-  assert.equal(overlay.title, 'SLA breached');
+  assert.equal(overlay.title, 'SLO breached');
   assert.match(overlay.body, /only allowed 1 breach\./);
 });
 

@@ -22,6 +22,34 @@
   box-shadow: var(--shadow-overlay-card);
 }
 
+.game-overlay-card--success {
+  border: 1px solid rgba(110, 207, 205, 0.42);
+  background:
+    radial-gradient(circle at top right, rgba(110, 207, 205, 0.26), rgba(110, 207, 205, 0) 34%),
+    radial-gradient(circle at bottom left, rgba(255, 214, 138, 0.22), rgba(255, 214, 138, 0) 32%),
+    var(--surface-overlay-card);
+  box-shadow:
+    0 0 0 1px rgba(110, 207, 205, 0.14),
+    0 24px 70px rgba(10, 17, 26, 0.28);
+}
+
+.game-overlay-eyebrow {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2d8f91;
+}
+
+.game-overlay-card--success .game-overlay-title {
+  color: #14636a;
+}
+
+.game-overlay-card--success .game-overlay-cta {
+  color: #14636a;
+}
+
 .game-overlay-title {
   margin: 0;
   font-size: clamp(2rem, 3vw, 2.75rem);
@@ -38,6 +66,10 @@
   margin: 28px 0 0;
   font-size: 1.05rem;
   line-height: 1.6;
+}
+
+.game-overlay-body + .game-overlay-body {
+  margin-top: 14px;
 }
 
 .game-overlay-section {

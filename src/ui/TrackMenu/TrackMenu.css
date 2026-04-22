@@ -27,6 +27,77 @@
   line-height: 1.05;
 }
 
+.track-menu-settings {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(110, 207, 205, 0.26);
+  background: rgba(110, 207, 205, 0.06);
+  display: grid;
+  gap: 10px;
+}
+
+.track-menu-settings-title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.track-menu-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.track-menu-settings-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--surface-copy-muted);
+}
+
+.track-menu-settings-select {
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(110, 207, 205, 0.42);
+  background: rgba(232, 241, 250, 0.08);
+  color: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.track-menu-experiment-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.track-menu-experiment-toggle {
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(110, 207, 205, 0.34);
+  background: rgba(232, 241, 250, 0.06);
+  color: var(--color-accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.track-menu-experiment-toggle:hover {
+  border-color: rgba(110, 207, 205, 0.58);
+  background: rgba(232, 241, 250, 0.12);
+}
+
+.track-menu-experiment-toggle.is-active {
+  border-color: rgba(110, 207, 205, 0.78);
+  background: rgba(110, 207, 205, 0.14);
+}
+
 .track-menu-copy {
   margin: 0;
   font-size: 0.95rem;
@@ -54,7 +125,7 @@
 }
 
 .track-menu-item:hover {
-  transform: translateY(-1px);
+  transform: tranSLOteY(-1px);
   border-color: var(--border-track-menu-item-hover);
   background: var(--surface-track-menu-item-hover);
 }
