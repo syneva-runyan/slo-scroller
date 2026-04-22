@@ -4,6 +4,7 @@ import { LevelManager } from './LevelManager.js';
 import { levelTracks } from './levels.js';
 import { isAvailabilityTrack } from './trackUtils.js';
 import { updateElapsedSeconds } from './timer.js';
+import { AvailabilityTracker } from './AvailabilityTracker.js';
 import './Game.css';
 import { Input } from '../systems/Input.js';
 import { Renderer } from '../systems/Renderer.js';
@@ -19,9 +20,6 @@ const GROUND_Y = 560;
 const MAX_DELTA_SECONDS = 0.033;
 const PLAYER_X = 180;
 const HAMMER_STRIKE_SECONDS = 0.24;
-const AVAILABILITY_OUTAGE_SECONDS = 1.6;
-const DEFAULT_AVAILABILITY_WINDOW_SECONDS = 10;
-const AVAILABILITY_TARGET_EPSILON = 0.0001;
 
 export class Game {
   constructor(container) {
@@ -73,14 +71,15 @@ export class Game {
     this.overlayView = new OverlayView(this.stage);
     this.trackMenuView = new TrackMenuView(this.menuContainer, {
       onSelectTrack: (trackId) => this.selectTrack(trackId),
-      onExperimentToggle: () => this.toggleExperimentMode(),
-      onWindowConfigChange: (value) => { this.experimentWindowSeconds = value; },
+      onExperimentToggle: () => this.availability.toggleExperimentMode(),
+      onWindowConfigChange: (value) => this.availability.setWindowSeconds(value),
     });
     this.player = new Player({
       x: PLAYER_X,
       groundY: GROUND_Y,
     });
 
+    this.availability = new AvailabilityTracker();
     this.animationFrameId = 0;
     this.lastTime = 0;
     this.state = 'menu';
@@ -93,10 +92,7 @@ export class Game {
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
     this.hammerStrike = null;
-    this.availabilityIncidents = [];
-    this.progressHitMarkers = [];
-    this.experimentMode = false;
-    this.experimentWindowSeconds = 10;
+    this.availability.reset();
   }
 
   start() {
@@ -202,10 +198,10 @@ export class Game {
         if (isAvailabilityTrack(track)) {
           this.recordAvailabilityIncident(level);
           if (obstacle.kind === 'button' || obstacle.kind === 'power-strip') {
-            this.powerTripTimer = AVAILABILITY_OUTAGE_SECONDS;
+            this.powerTripTimer = this.availability.outageSeconds;
           }
 
-          if (!this.meetsAvailabilityTarget(level)) {
+          if (!this.availability.meetsTarget(this.elapsedSeconds, level)) {
             this.state = 'failed';
             return;
           }
@@ -219,7 +215,7 @@ export class Game {
       }
     }
 
-    if (isAvailabilityTrack(track) && !this.meetsAvailabilityTarget(level)) {
+    if (isAvailabilityTrack(track) && !this.availability.meetsTarget(this.elapsedSeconds, level)) {
       this.state = 'failed';
       return;
     }
@@ -243,12 +239,12 @@ export class Game {
       level,
       track,
       breaches: this.breaches,
-      rollingAvailability: this.getRollingAvailability(level),
-      availabilityTarget: this.getAvailabilityTarget(level),
+      rollingAvailability: this.availability.getRollingAvailability(this.elapsedSeconds, level),
+      availabilityTarget: this.availability.getTarget(level),
       levelIndex: this.levelManager.currentIndex + 1,
       levelCount: this.levelManager.levelCount,
-      experimentMode: this.experimentMode,
-      experimentWindowSeconds: this.experimentWindowSeconds,
+      experimentMode: this.availability.experimentMode,
+      experimentWindowSeconds: this.availability.experimentWindowSeconds,
     });
 
     this.renderer.render({
@@ -256,7 +252,7 @@ export class Game {
       level,
       timeRemaining: Math.max(0, level.durationSeconds - this.elapsedSeconds),
       progressRatio: Math.min(1, this.elapsedSeconds / level.durationSeconds),
-      progressHitMarkers: this.progressHitMarkers,
+      progressHitMarkers: this.availability.progressHitMarkers,
       levelIndex: this.levelManager.currentIndex + 1,
       levelCount: this.levelManager.levelCount,
       player: this.player,
@@ -266,9 +262,9 @@ export class Game {
       flashTimer: this.flashTimer,
       powerTripTimer: this.powerTripTimer,
       hammerStrike: this.hammerStrike,
-      rollingAvailability: this.getRollingAvailability(level),
-      availabilityTarget: this.getAvailabilityTarget(level),
-      availabilityWindowSeconds: this.getAvailabilityWindowSeconds(level),
+      rollingAvailability: this.availability.getRollingAvailability(this.elapsedSeconds, level),
+      availabilityTarget: this.availability.getTarget(level),
+      availabilityWindowSeconds: this.availability.getWindowSeconds(level),
       track,
       elapsedSeconds: this.elapsedSeconds,
     });
@@ -278,18 +274,18 @@ export class Game {
       track,
       state: this.state,
       progressRatio: Math.min(1, this.elapsedSeconds / level.durationSeconds),
-      progressHitMarkers: this.progressHitMarkers,
-      rollingAvailability: this.getRollingAvailability(level),
-      availabilityTarget: this.getAvailabilityTarget(level),
-      availabilityWindowSeconds: this.getAvailabilityWindowSeconds(level),
+      progressHitMarkers: this.availability.progressHitMarkers,
+      rollingAvailability: this.availability.getRollingAvailability(this.elapsedSeconds, level),
+      availabilityTarget: this.availability.getTarget(level),
+      availabilityWindowSeconds: this.availability.getWindowSeconds(level),
       breaches: this.breaches,
       elapsedSeconds: this.elapsedSeconds,
     });
     this.trackMenuView.render({
-      tracks: this.levelManager.getTrackMenuItems(this.experimentMode),
+      tracks: this.levelManager.getTrackMenuItems(this.availability.experimentMode),
       showExperimentToggle: isAvailabilityTrack(track),
-      experimentMode: this.experimentMode,
-      experimentWindowSeconds: this.experimentWindowSeconds,
+      experimentMode: this.availability.experimentMode,
+      experimentWindowSeconds: this.availability.experimentWindowSeconds,
     });
   }
 
@@ -308,8 +304,7 @@ export class Game {
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
     this.hammerStrike = null;
-    this.availabilityIncidents = [];
-    this.progressHitMarkers = [];
+    this.availability.reset();
     this.player.reset();
   }
 
@@ -371,69 +366,11 @@ export class Game {
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
     this.hammerStrike = null;
-    this.availabilityIncidents = [];
-    this.progressHitMarkers = [];
+    this.availability.reset();
     this.player.reset();
   }
 
-  getAvailabilityWindowSeconds(level) {
-    if (this.experimentMode) {
-      return this.experimentWindowSeconds;
-    }
-    return level.availabilityWindowSeconds ?? DEFAULT_AVAILABILITY_WINDOW_SECONDS;
-  }
-
-  getAvailabilityTarget(level) {
-    if (level.targetAvailability != null) {
-      return level.targetAvailability;
-    }
-
-    const windowSeconds = this.getAvailabilityWindowSeconds(level);
-    return Math.max(0, 1 - (level.allowedBreaches * AVAILABILITY_OUTAGE_SECONDS) / windowSeconds);
-  }
-
   recordAvailabilityIncident(level) {
-    const startTime = this.elapsedSeconds;
-    const endTime = startTime + AVAILABILITY_OUTAGE_SECONDS;
-    const lastIncident = this.availabilityIncidents[this.availabilityIncidents.length - 1];
-
-    if (lastIncident && startTime <= lastIncident.endTime) {
-      lastIncident.endTime = Math.max(lastIncident.endTime, endTime);
-    } else {
-      this.availabilityIncidents.push({ startTime, endTime });
-    }
-
-    this.progressHitMarkers.push(Math.min(1, startTime / level.durationSeconds));
-    const windowStart = this.elapsedSeconds - this.getAvailabilityWindowSeconds(level);
-    this.availabilityIncidents = this.availabilityIncidents.filter((incident) => incident.endTime >= windowStart);
-  }
-
-  getRollingAvailability(level) {
-    const currentTrack = this.levelManager.getCurrentTrack();
-    if (!isAvailabilityTrack(currentTrack)) {
-      return 1;
-    }
-
-    const windowSeconds = this.getAvailabilityWindowSeconds(level);
-    const windowStart = this.elapsedSeconds - windowSeconds;
-    let unavailableSeconds = 0;
-
-    for (const incident of this.availabilityIncidents) {
-      const overlapStart = Math.max(windowStart, incident.startTime);
-      const overlapEnd = Math.min(this.elapsedSeconds, incident.endTime);
-      if (overlapEnd > overlapStart) {
-        unavailableSeconds += overlapEnd - overlapStart;
-      }
-    }
-
-    return Math.max(0, Math.min(1, 1 - unavailableSeconds / windowSeconds));
-  }
-
-  meetsAvailabilityTarget(level) {
-    return this.getRollingAvailability(level) + AVAILABILITY_TARGET_EPSILON >= this.getAvailabilityTarget(level);
-  }
-
-  toggleExperimentMode() {
-    this.experimentMode = !this.experimentMode;
+    this.availability.recordIncident(this.elapsedSeconds, level);
   }
 }
