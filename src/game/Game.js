@@ -73,7 +73,7 @@ export class Game {
     this.trackMenuView = new TrackMenuView(this.menuContainer, {
       onSelectTrack: (trackId) => this.selectTrack(trackId),
       onExperimentToggle: () => this.availability.toggleExperimentMode(),
-      // TODO - eventually we will may want to implement rolling time windows in 
+      // TODO - eventually we may want to implement rolling time windows in
       // levels other than availability
       onRollingTimeWindowConfigChange: (value) => this.availability.setRollingTimeWindowSeconds(value),
     });
