@@ -273,7 +273,7 @@ export class Game {
       elapsedSeconds: this.elapsedSeconds,
     });
     this.trackMenuView.render({
-      tracks: this.levelManager.getTrackMenuItems(this.availability.experimentMode),
+      tracks: this.levelManager.getTrackMenuItems(),
       showExperimentToggle: isAvailabilityTrack(track),
       experimentMode: this.availability.experimentMode,
       rollingWindowSeconds: this.availability.rollingWindowSeconds,

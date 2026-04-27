@@ -30,9 +30,11 @@ function createExperimentSettings(rollingWindowSeconds, onRollingTimeWindowConfi
   const labelEl = document.createElement('label');
   labelEl.className = 'track-menu-settings-label';
   labelEl.textContent = 'Rolling window';
+  labelEl.setAttribute('for', 'rolling-window-select');
 
   const select = document.createElement('select');
   select.className = 'track-menu-settings-select';
+  select.id = 'rolling-window-select';
   for (const opt of WINDOW_OPTIONS) {
     const option = document.createElement('option');
     option.value = String(opt);
