@@ -1,7 +1,7 @@
 import { buildLevelBriefing } from './buildLevelBriefing.js';
 
 export class LevelBriefing {
-  build(level, levelIndex) {
-    return buildLevelBriefing(level, levelIndex);
+  build(level, levelIndex, rollingWindowSeconds = null) {
+    return buildLevelBriefing(level, levelIndex, rollingWindowSeconds);
   }
 }

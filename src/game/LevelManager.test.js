@@ -14,6 +14,16 @@ const levelTracks = [
     ],
   },
   {
+    id: 'availability-lab',
+    label: 'Availability Lab',
+    description: 'Experiment with rolling windows.',
+    hiddenFromMenu: true,
+    parentTrackId: 'availability',
+    levels: [
+      { id: 'availability-lab-1', title: 'Availability Lab 1' },
+    ],
+  },
+  {
     id: 'latency',
     label: 'Latency',
     description: 'Track response time goals.',
@@ -35,7 +45,15 @@ test('LevelManager exposes the active track in track menu items', () => {
       description: 'Track availability goals.',
       levelCount: 2,
       active: true,
-      progressLabel: 'Level 1 of 2',
+      sloLevelLabel: 'Level 1 of 2',
+    },
+    {
+      id: 'availability-lab',
+      label: 'Availability Lab',
+      description: 'Experiment with rolling windows.',
+      levelCount: 1,
+      active: false,
+      sloLevelLabel: '1 levels',
     },
     {
       id: 'latency',
@@ -43,7 +61,39 @@ test('LevelManager exposes the active track in track menu items', () => {
       description: 'Track response time goals.',
       levelCount: 3,
       active: false,
-      progressLabel: '3 levels',
+      sloLevelLabel: '3 levels',
+    },
+  ]);
+});
+
+test('LevelManager marks the selected lab track as active in the menu', () => {
+  const manager = new LevelManager(levelTracks);
+  manager.selectTrack('availability-lab');
+
+  assert.deepEqual(manager.getTrackMenuItems(), [
+    {
+      id: 'availability',
+      label: 'Availability',
+      description: 'Track availability goals.',
+      levelCount: 2,
+      active: false,
+      sloLevelLabel: '2 levels',
+    },
+    {
+      id: 'availability-lab',
+      label: 'Availability Lab',
+      description: 'Experiment with rolling windows.',
+      levelCount: 1,
+      active: true,
+      sloLevelLabel: 'Level 1 of 1',
+    },
+    {
+      id: 'latency',
+      label: 'Latency',
+      description: 'Track response time goals.',
+      levelCount: 3,
+      active: false,
+      sloLevelLabel: '3 levels',
     },
   ]);
 });

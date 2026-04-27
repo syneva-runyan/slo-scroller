@@ -2,13 +2,11 @@ export class Input {
   constructor(target) {
     this.jumpQueued = false;
     this.handleKeyDown = (event) => {
-      if (event.code !== 'Space') {
-        return;
-      }
-
-      event.preventDefault();
-      if (!event.repeat) {
-        this.jumpQueued = true;
+      if (event.code === 'Space') {
+        event.preventDefault();
+        if (!event.repeat) {
+          this.jumpQueued = true;
+        }
       }
     };
 
