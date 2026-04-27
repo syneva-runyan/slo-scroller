@@ -3,10 +3,10 @@ function replaceWindow(text, originalSeconds, newSeconds) {
   return text.replaceAll(`${originalSeconds}s`, `${newSeconds}s`);
 }
 
-export function buildLevelBriefing(level, levelIndex, experimentWindowSeconds = null) {
+export function buildLevelBriefing(level, levelIndex, rollingWindowSeconds = null) {
   const patch = (text) =>
-    experimentWindowSeconds != null
-      ? replaceWindow(text, level.availabilityWindowSeconds, experimentWindowSeconds)
+    rollingWindowSeconds != null
+      ? replaceWindow(text, level.availabilityWindowSeconds, rollingWindowSeconds)
       : text;
 
   return {

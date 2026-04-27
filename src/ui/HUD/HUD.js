@@ -12,13 +12,13 @@ export class HUD {
     this.levelBriefing = new LevelBriefing();
   }
 
-  getOverlay({ state, level, track, breaches, rollingAvailability, availabilityTarget, levelIndex, levelCount, experimentMode, experimentWindowSeconds }) {
+  getOverlay({ state, level, track, breaches, rollingAvailability, availabilityTarget, levelIndex, levelCount, experimentMode, rollingWindowSeconds }) {
     if (state === 'menu') {
       return buildMenuOverlay(track, levelCount);
     }
 
     if (state === 'level-intro') {
-      const expWindow = experimentMode && isAvailabilityTrack(track) ? experimentWindowSeconds : null;
+      const expWindow = experimentMode && isAvailabilityTrack(track) ? rollingWindowSeconds : null;
       return {
         briefing: this.levelBriefing.build(level, levelIndex, expWindow),
       };

@@ -1,45 +1,15 @@
-const OUTAGE_SECONDS = 1.6;
-const DEFAULT_WINDOW_SECONDS = 10;
-const TARGET_EPSILON = 0.0001;
+import { OUTAGE_SECONDS, TARGET_EPSILON } from './constants.js';
+import { GameTracker } from './GameTracker.js';
 
-export class AvailabilityTracker {
+export class AvailabilityTracker extends GameTracker {
   constructor() {
+    super();
     this._incidents = [];
-    this._progressHitMarkers = [];
-    this._experimentMode = false;
-    this._experimentWindowSeconds = DEFAULT_WINDOW_SECONDS;
-  }
-
-  get progressHitMarkers() {
-    return this._progressHitMarkers;
-  }
-
-  get experimentMode() {
-    return this._experimentMode;
-  }
-
-  get experimentWindowSeconds() {
-    return this._experimentWindowSeconds;
   }
 
   reset() {
+    super.reset();
     this._incidents = [];
-    this._progressHitMarkers = [];
-  }
-
-  toggleExperimentMode() {
-    this._experimentMode = !this._experimentMode;
-  }
-
-  setWindowSeconds(value) {
-    this._experimentWindowSeconds = value;
-  }
-
-  getWindowSeconds(level) {
-    if (this._experimentMode) {
-      return this._experimentWindowSeconds;
-    }
-    return level.availabilityWindowSeconds ?? DEFAULT_WINDOW_SECONDS;
   }
 
   getTarget(level) {

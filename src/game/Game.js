@@ -244,7 +244,7 @@ export class Game {
       levelIndex: this.levelManager.currentIndex + 1,
       levelCount: this.levelManager.levelCount,
       experimentMode: this.availability.experimentMode,
-      experimentWindowSeconds: this.availability.experimentWindowSeconds,
+      rollingWindowSeconds: this.availability.rollingWindowSeconds,
     });
 
     this.renderer.render({
@@ -285,7 +285,7 @@ export class Game {
       tracks: this.levelManager.getTrackMenuItems(this.availability.experimentMode),
       showExperimentToggle: isAvailabilityTrack(track),
       experimentMode: this.availability.experimentMode,
-      experimentWindowSeconds: this.availability.experimentWindowSeconds,
+      rollingWindowSeconds: this.availability.rollingWindowSeconds,
     });
   }
 

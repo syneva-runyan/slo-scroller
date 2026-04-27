@@ -16,7 +16,7 @@ function createExperimentToggle(experimentMode, onToggle) {
   return footer;
 }
 
-function createExperimentSettings(experimentWindowSeconds, onWindowConfigChange) {
+function createExperimentSettings(rollingWindowSeconds, onWindowConfigChange) {
   const panel = document.createElement('div');
   panel.className = 'track-menu-settings';
 
@@ -37,7 +37,7 @@ function createExperimentSettings(experimentWindowSeconds, onWindowConfigChange)
     const option = document.createElement('option');
     option.value = String(opt);
     option.textContent = `${opt}s`;
-    option.selected = opt === experimentWindowSeconds;
+    option.selected = opt === rollingWindowSeconds;
     select.append(option);
   }
   select.addEventListener('change', () => onWindowConfigChange(Number(select.value)));
@@ -59,8 +59,8 @@ export class TrackMenuView {
     this.lastSignature = '';
   }
 
-  render({ tracks, showExperimentToggle, experimentMode, experimentWindowSeconds }) {
-    const signature = JSON.stringify({ tracks, showExperimentToggle, experimentMode, experimentWindowSeconds });
+  render({ tracks, showExperimentToggle, experimentMode, rollingWindowSeconds }) {
+    const signature = JSON.stringify({ tracks, showExperimentToggle, experimentMode, rollingWindowSeconds });
     if (signature === this.lastSignature) {
       return;
     }
@@ -71,7 +71,7 @@ export class TrackMenuView {
       createTrackMenuHeader(activeTrack),
       createTrackMenuList(tracks, { onSelectTrack: this.onSelectTrack }),
       ...(showExperimentToggle && experimentMode
-        ? [createExperimentSettings(experimentWindowSeconds, this.onWindowConfigChange)]
+        ? [createExperimentSettings(rollingWindowSeconds, this.onWindowConfigChange)]
         : []),
       ...(showExperimentToggle ? [createExperimentToggle(experimentMode, this.onExperimentToggle)] : []),
     );
