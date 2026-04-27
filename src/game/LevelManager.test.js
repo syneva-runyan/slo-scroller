@@ -66,7 +66,7 @@ test('LevelManager exposes the active track in track menu items', () => {
   ]);
 });
 
-test('LevelManager hides lab tracks from the menu and marks the parent active while in experiment mode', () => {
+test('LevelManager marks the selected lab track as active in the menu', () => {
   const manager = new LevelManager(levelTracks);
   manager.selectTrack('availability-lab');
 
