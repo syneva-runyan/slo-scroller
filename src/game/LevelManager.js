@@ -20,7 +20,7 @@ export class LevelManager {
     return this.levels[this.currentIndex];
   }
 
-  getTrackMenuItems(experimentMode = false) {
+  getTrackMenuItems() {
     return this.levelTracks.map((track) => ({
       id: track.id,
       label: track.label,
