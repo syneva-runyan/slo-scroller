@@ -31,9 +31,6 @@ export class AvailabilityTracker extends GameTracker {
     } else {
       this._incidents.push({ startTime, endTime });
     }
-
-    const windowStart = elapsedSeconds - this.getRollingTimeWindowSeconds(level);
-    this._incidents = this._incidents.filter((i) => i.endTime >= windowStart);
   }
 
   getRollingAvailability(elapsedSeconds, level) {
