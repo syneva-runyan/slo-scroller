@@ -125,7 +125,7 @@
 }
 
 .track-menu-item:hover {
-  transform: tranSLOteY(-1px);
+  transform: translateY(-1px);
   border-color: var(--border-track-menu-item-hover);
   background: var(--surface-track-menu-item-hover);
 }

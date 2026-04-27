@@ -19,12 +19,14 @@ test('buildMenuOverlay includes the selected track label and level count', () =>
 test('buildLevelCompleteOverlay pluralizes breaches and changes CTA on the last level', () => {
   const earlyOverlay = buildLevelCompleteOverlay(
     { title: 'Availability I', lesson: 'Keep uptime steady.' },
+    { id: 'response-time', label: 'Response Time' },
     1,
     3,
     2,
   );
   const finalOverlay = buildLevelCompleteOverlay(
     { title: 'Availability III', lesson: 'Protect reliability continuously.' },
+    { id: 'response-time', label: 'Response Time' },
     3,
     3,
     1,
@@ -37,7 +39,10 @@ test('buildLevelCompleteOverlay pluralizes breaches and changes CTA on the last 
 });
 
 test('buildFailedOverlay singularizes the breach count when only one is allowed', () => {
-  const overlay = buildFailedOverlay({ title: 'Response Time II', allowedBreaches: 1 });
+  const overlay = buildFailedOverlay(
+    { title: 'Response Time II', allowedBreaches: 1 },
+    { id: 'response-time', label: 'Response Time' },
+  );
 
   assert.equal(overlay.title, 'SLO breached');
   assert.match(overlay.body, /only allowed 1 breach\./);

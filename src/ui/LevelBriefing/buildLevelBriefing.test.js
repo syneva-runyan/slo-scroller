@@ -19,6 +19,7 @@ test('buildLevelBriefing maps level content into overlay briefing copy', () => {
     subtitle: 'Availability target: 99.5% uptime',
     intro: 'Downtime windows get tighter as the target rises.',
     objective: 'Finish with one breach or fewer.',
+    targetLabel: undefined,
     cta: 'Press Space to start this level.',
   });
 });

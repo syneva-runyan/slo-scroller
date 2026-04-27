@@ -27,7 +27,7 @@ export class LevelManager {
       description: track.description,
       levelCount: track.levels.length,
       active: track.id === this.activeTrack.id,
-      progresSLObel:
+      sloLevelLabel:
         track.id === this.activeTrack.id
           ? `Level ${this.currentIndex + 1} of ${track.levels.length}`
           : `${track.levels.length} levels`,

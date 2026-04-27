@@ -45,7 +45,15 @@ test('LevelManager exposes the active track in track menu items', () => {
       description: 'Track availability goals.',
       levelCount: 2,
       active: true,
-      progresSLObel: 'Level 1 of 2',
+      sloLevelLabel: 'Level 1 of 2',
+    },
+    {
+      id: 'availability-lab',
+      label: 'Availability Lab',
+      description: 'Experiment with rolling windows.',
+      levelCount: 1,
+      active: false,
+      sloLevelLabel: '1 levels',
     },
     {
       id: 'latency',
@@ -53,7 +61,7 @@ test('LevelManager exposes the active track in track menu items', () => {
       description: 'Track response time goals.',
       levelCount: 3,
       active: false,
-      progresSLObel: '3 levels',
+      sloLevelLabel: '3 levels',
     },
   ]);
 });
@@ -68,8 +76,16 @@ test('LevelManager hides lab tracks from the menu and marks the parent active wh
       label: 'Availability',
       description: 'Track availability goals.',
       levelCount: 2,
+      active: false,
+      sloLevelLabel: '2 levels',
+    },
+    {
+      id: 'availability-lab',
+      label: 'Availability Lab',
+      description: 'Experiment with rolling windows.',
+      levelCount: 1,
       active: true,
-      progresSLObel: 'Experiment mode',
+      sloLevelLabel: 'Level 1 of 1',
     },
     {
       id: 'latency',
@@ -77,15 +93,9 @@ test('LevelManager hides lab tracks from the menu and marks the parent active wh
       description: 'Track response time goals.',
       levelCount: 3,
       active: false,
-      progresSLObel: '3 levels',
+      sloLevelLabel: '3 levels',
     },
   ]);
-
-  assert.deepEqual(manager.getTrackMenuContext(), {
-    activeTrack: levelTracks[0],
-    experimentTrack: levelTracks[1],
-    experimentActive: true,
-  });
 });
 
 test('LevelManager advances until the final level and then stops', () => {

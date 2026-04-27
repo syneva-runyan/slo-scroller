@@ -16,7 +16,7 @@ function createExperimentToggle(experimentMode, onToggle) {
   return footer;
 }
 
-function createExperimentSettings(rollingWindowSeconds, onWindowConfigChange) {
+function createExperimentSettings(rollingWindowSeconds, onRollingTimeWindowConfigChange) {
   const panel = document.createElement('div');
   panel.className = 'track-menu-settings';
 
@@ -40,7 +40,7 @@ function createExperimentSettings(rollingWindowSeconds, onWindowConfigChange) {
     option.selected = opt === rollingWindowSeconds;
     select.append(option);
   }
-  select.addEventListener('change', () => onWindowConfigChange(Number(select.value)));
+  select.addEventListener('change', () => onRollingTimeWindowConfigChange(Number(select.value)));
 
   row.append(labelEl, select);
   panel.append(title, row);
@@ -48,11 +48,11 @@ function createExperimentSettings(rollingWindowSeconds, onWindowConfigChange) {
 }
 
 export class TrackMenuView {
-  constructor(container, { onSelectTrack, onExperimentToggle, onWindowConfigChange }) {
+  constructor(container, { onSelectTrack, onExperimentToggle, onRollingTimeWindowConfigChange }) {
     this.container = container;
     this.onSelectTrack = onSelectTrack;
     this.onExperimentToggle = onExperimentToggle;
-    this.onWindowConfigChange = onWindowConfigChange;
+    this.onRollingTimeWindowConfigChange = onRollingTimeWindowConfigChange;
     this.root = document.createElement('aside');
     this.root.className = 'track-menu';
     this.container.append(this.root);
@@ -71,7 +71,7 @@ export class TrackMenuView {
       createTrackMenuHeader(activeTrack),
       createTrackMenuList(tracks, { onSelectTrack: this.onSelectTrack }),
       ...(showExperimentToggle && experimentMode
-        ? [createExperimentSettings(rollingWindowSeconds, this.onWindowConfigChange)]
+        ? [createExperimentSettings(rollingWindowSeconds, this.onRollingTimeWindowConfigChange)]
         : []),
       ...(showExperimentToggle ? [createExperimentToggle(experimentMode, this.onExperimentToggle)] : []),
     );

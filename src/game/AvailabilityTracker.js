@@ -16,11 +16,12 @@ export class AvailabilityTracker extends GameTracker {
     if (level.targetAvailability != null) {
       return level.targetAvailability;
     }
-    const windowSeconds = this.getWindowSeconds(level);
+    const windowSeconds = this.getRollingTimeWindowSeconds(level);
     return Math.max(0, 1 - (level.allowedBreaches * OUTAGE_SECONDS) / windowSeconds);
   }
 
-  recordIncident(elapsedSeconds, level) {
+  recordCollisionIncident(elapsedSeconds, level, _obstacle) {
+    super.recordCollisionIncident(elapsedSeconds, level, _obstacle);
     const startTime = elapsedSeconds;
     const endTime = startTime + OUTAGE_SECONDS;
     const last = this._incidents[this._incidents.length - 1];
@@ -31,14 +32,12 @@ export class AvailabilityTracker extends GameTracker {
       this._incidents.push({ startTime, endTime });
     }
 
-    this._progressHitMarkers.push(Math.min(1, startTime / level.durationSeconds));
-
-    const windowStart = elapsedSeconds - this.getWindowSeconds(level);
+    const windowStart = elapsedSeconds - this.getRollingTimeWindowSeconds(level);
     this._incidents = this._incidents.filter((i) => i.endTime >= windowStart);
   }
 
   getRollingAvailability(elapsedSeconds, level) {
-    const windowSeconds = this.getWindowSeconds(level);
+    const windowSeconds = this.getRollingTimeWindowSeconds(level);
     const windowStart = elapsedSeconds - windowSeconds;
     let unavailableSeconds = 0;
 
@@ -55,6 +54,20 @@ export class AvailabilityTracker extends GameTracker {
 
   meetsTarget(elapsedSeconds, level) {
     return this.getRollingAvailability(elapsedSeconds, level) + TARGET_EPSILON >= this.getTarget(level);
+  }
+
+  handleObstacleCollision(game, _track, level, obstacle) {
+    this.recordCollisionIncident(game.elapsedSeconds, level, obstacle);
+    if (obstacle.kind === 'button' || obstacle.kind === 'power-strip') {
+      game.powerTripTimer = this.outageSeconds;
+    }
+
+    if (!this.meetsTarget(game.elapsedSeconds, level)) {
+      game.state = 'failed';
+      return false;
+    }
+
+    return true;
   }
 
   get outageSeconds() {

@@ -5,6 +5,7 @@ import { levelTracks } from './levels.js';
 import { isAvailabilityTrack } from './trackUtils.js';
 import { updateElapsedSeconds } from './timer.js';
 import { AvailabilityTracker } from './AvailabilityTracker.js';
+import { GameTracker } from './GameTracker.js';
 import './Game.css';
 import { Input } from '../systems/Input.js';
 import { Renderer } from '../systems/Renderer.js';
@@ -72,7 +73,9 @@ export class Game {
     this.trackMenuView = new TrackMenuView(this.menuContainer, {
       onSelectTrack: (trackId) => this.selectTrack(trackId),
       onExperimentToggle: () => this.availability.toggleExperimentMode(),
-      onWindowConfigChange: (value) => this.availability.setWindowSeconds(value),
+      // TODO - eventually we will may want to implement rolling time windows in 
+      // levels other than availability
+      onRollingTimeWindowConfigChange: (value) => this.availability.setRollingTimeWindowSeconds(value),
     });
     this.player = new Player({
       x: PLAYER_X,
@@ -80,6 +83,7 @@ export class Game {
     });
 
     this.availability = new AvailabilityTracker();
+    this.defaultTracker = new GameTracker();
     this.animationFrameId = 0;
     this.lastTime = 0;
     this.state = 'menu';
@@ -92,7 +96,7 @@ export class Game {
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
     this.hammerStrike = null;
-    this.availability.reset();
+    this.resetTrackers();
   }
 
   start() {
@@ -195,22 +199,8 @@ export class Game {
         this.player.registerHit();
         this.flashTimer = 0.35;
 
-        if (isAvailabilityTrack(track)) {
-          this.recordAvailabilityIncident(level);
-          if (obstacle.kind === 'button' || obstacle.kind === 'power-strip') {
-            this.powerTripTimer = this.availability.outageSeconds;
-          }
-
-          if (!this.availability.meetsTarget(this.elapsedSeconds, level)) {
-            this.state = 'failed';
-            return;
-          }
-        } else {
-          this.breaches += 1;
-          if (this.breaches > level.allowedBreaches) {
-            this.state = 'failed';
-            return;
-          }
+        if (!this.handleObstacleCollision(track, level, obstacle)) {
+          return;
         }
       }
     }
@@ -228,6 +218,7 @@ export class Game {
   render() {
     const level = this.levelManager.getCurrentLevel();
     const track = this.levelManager.getCurrentTrack();
+    const activeTracker = this.getTrackerForTrack(track);
     if (this.controlsPill) {
       this.controlsPill.textContent =
         track.id === 'error-budget'
@@ -252,7 +243,7 @@ export class Game {
       level,
       timeRemaining: Math.max(0, level.durationSeconds - this.elapsedSeconds),
       progressRatio: Math.min(1, this.elapsedSeconds / level.durationSeconds),
-      progressHitMarkers: this.availability.progressHitMarkers,
+      progressHitMarkers: activeTracker.progressHitMarkers,
       levelIndex: this.levelManager.currentIndex + 1,
       levelCount: this.levelManager.levelCount,
       player: this.player,
@@ -264,7 +255,7 @@ export class Game {
       hammerStrike: this.hammerStrike,
       rollingAvailability: this.availability.getRollingAvailability(this.elapsedSeconds, level),
       availabilityTarget: this.availability.getTarget(level),
-      availabilityWindowSeconds: this.availability.getWindowSeconds(level),
+      availabilityWindowSeconds: this.availability.getRollingTimeWindowSeconds(level),
       track,
       elapsedSeconds: this.elapsedSeconds,
     });
@@ -274,10 +265,10 @@ export class Game {
       track,
       state: this.state,
       progressRatio: Math.min(1, this.elapsedSeconds / level.durationSeconds),
-      progressHitMarkers: this.availability.progressHitMarkers,
+      progressHitMarkers: activeTracker.progressHitMarkers,
       rollingAvailability: this.availability.getRollingAvailability(this.elapsedSeconds, level),
       availabilityTarget: this.availability.getTarget(level),
-      availabilityWindowSeconds: this.availability.getWindowSeconds(level),
+      availabilityWindowSeconds: this.availability.getRollingTimeWindowSeconds(level),
       breaches: this.breaches,
       elapsedSeconds: this.elapsedSeconds,
     });
@@ -304,7 +295,7 @@ export class Game {
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
     this.hammerStrike = null;
-    this.availability.reset();
+    this.resetTrackers();
     this.player.reset();
   }
 
@@ -366,11 +357,26 @@ export class Game {
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
     this.hammerStrike = null;
-    this.availability.reset();
+    this.resetTrackers();
     this.player.reset();
   }
 
-  recordAvailabilityIncident(level) {
-    this.availability.recordIncident(this.elapsedSeconds, level);
+  getTrackerForTrack(track) {
+    return isAvailabilityTrack(track) ? this.availability : this.defaultTracker;
+  }
+
+  resetTrackers() {
+    this.availability.reset();
+    this.defaultTracker.reset();
+  }
+
+  recordCollisionIncident(track, level, obstacle) {
+    const tracker = this.getTrackerForTrack(track);
+    tracker.recordCollisionIncident(this.elapsedSeconds, level, obstacle);
+  }
+
+  handleObstacleCollision(track, level, obstacle) {
+    const tracker = this.getTrackerForTrack(track);
+    return tracker.handleObstacleCollision(this, track, level, obstacle);
   }
 }

@@ -329,7 +329,7 @@ export class Renderer {
     const angle = hammerStrike ? -0.95 + eased * 2.1 : -0.42;
 
     ctx.save();
-    ctx.tranSLOte(player.x + 54, player.y + 40);
+    ctx.translate(player.x + 54, player.y + 40);
     ctx.rotate(angle);
     ctx.fillStyle = '#7b4c20';
     ctx.fillRect(-4, -2, 12, 58);
