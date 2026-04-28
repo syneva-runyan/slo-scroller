@@ -3,12 +3,18 @@ const CEILING_BOTTOM = '#243245';
 const FLOOR_COLOR = '#d7dee8';
 const FLOOR_SHADOW = '#b6c0cb';
 
+import { DeployBugButton } from './collisionItems/DeployBugButton.js';
+import { AvailabilityWorkstation } from './AvailabilityWorkstation.js';
+import { isAvailabilityTrack } from '../game/trackUtils.js';
+
 export class Renderer {
   constructor(ctx, { width, height, groundY }) {
     this.ctx = ctx;
     this.width = width;
     this.height = height;
     this.groundY = groundY;
+    this.deployBugButton = new DeployBugButton();
+    this.availabilityWorkstation = new AvailabilityWorkstation({ groundY });
   }
 
   render(scene) {
@@ -25,7 +31,6 @@ export class Renderer {
       scene.track,
       scene.hammerStrike,
     );
-    this.drawHud(scene);
 
     ctx.save();
     ctx.globalAlpha = 1;
@@ -61,7 +66,7 @@ export class Renderer {
     const { ctx } = this;
     const rackOffset = -(distance * 0.55) % 170;
     const lightOffset = -(distance * 0.18) % 260;
-    const outageActive = track?.id === 'availability' && powerTripTimer > 0;
+    const outageActive = isAvailabilityTrack(track) && powerTripTimer > 0;
 
     ctx.fillStyle = '#101926';
     ctx.fillRect(0, 90, this.width, this.groundY - 90);
@@ -86,8 +91,8 @@ export class Renderer {
     ctx.lineTo(this.width, 170);
     ctx.stroke();
 
-    if (track?.id === 'availability') {
-      this.drawAvailabilityWorkstation(outageActive, powerTripTimer);
+    if (isAvailabilityTrack(track)) {
+      this.availabilityWorkstation.draw(ctx, outageActive, powerTripTimer, distance);
     }
   }
 
@@ -129,7 +134,7 @@ export class Renderer {
     const x = this.width - distanceRemaining;
     ctx.fillStyle = '#fff4ce';
     ctx.fillRect(x, this.groundY - 180, 12, 180);
-    ctx.fillStyle = '#d05244';
+    ctx.fillStyle = '#5f7f96';
     ctx.fillRect(x + 12, this.groundY - 180, 70, 42);
   }
 
@@ -138,7 +143,9 @@ export class Renderer {
 
     for (const obstacle of obstacles) {
       const bounds = obstacle.getBounds();
-      if (obstacle.kind === 'cable') {
+      if (obstacle.kind === 'button') {
+        this.deployBugButton.draw(ctx, bounds, obstacle.color, obstacle.hit);
+      } else if (obstacle.kind === 'cable') {
         this.drawCable(bounds, obstacle.color, obstacle.hit);
       } else if (obstacle.kind === 'power-strip') {
         this.drawPowerStrip(bounds, obstacle.color, obstacle.hit);
@@ -161,7 +168,13 @@ export class Renderer {
 
       ctx.fillStyle = 'rgba(232, 242, 255, 0.92)';
       ctx.font = '16px Trebuchet MS';
-      ctx.fillText(obstacle.label, bounds.x - 4, bounds.y - 10);
+      if (obstacle.kind === 'button' || obstacle.kind === 'power-strip') {
+        ctx.textAlign = 'center';
+        ctx.fillText(obstacle.label, bounds.x + bounds.width * 0.5, bounds.y - 10);
+        ctx.textAlign = 'start';
+      } else {
+        ctx.fillText(obstacle.label, bounds.x - 4, bounds.y - 10);
+      }
     }
   }
 
@@ -186,40 +199,6 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawHud(scene) {
-    const { ctx } = this;
-    const progressPercent = scene.progressRatio;
-
-    ctx.fillStyle = 'rgba(244, 249, 255, 0.84)';
-    ctx.fillRect(28, 24, 520, 132);
-    ctx.fillStyle = '#17304a';
-    ctx.font = 'bold 28px Trebuchet MS';
-    ctx.fillText(`${scene.levelIndex}/${scene.levelCount} ${scene.level.title}`, 44, 58);
-    ctx.font = '18px Trebuchet MS';
-    ctx.fillText(scene.level.concept, 44, 86);
-    ctx.fillText(`Breaches: ${scene.breaches}/${scene.level.allowedBreaches}`, 44, 112);
-    ctx.fillText(`Time: ${scene.elapsedSeconds.toFixed(1)} / ${scene.level.durationSeconds}s`, 44, 138);
-
-    ctx.fillStyle = 'rgba(23, 48, 74, 0.16)';
-    ctx.fillRect(580, 34, 672, 26);
-    ctx.fillStyle = '#3bc2ae';
-    ctx.fillRect(580, 34, 672 * progressPercent, 26);
-    ctx.strokeStyle = 'rgba(23, 48, 74, 0.18)';
-    ctx.strokeRect(580, 34, 672, 26);
-
-    ctx.fillStyle = '#17304a';
-    ctx.font = '16px Trebuchet MS';
-    ctx.fillText(scene.level.targetLabel, 580, 86);
-    ctx.fillText(`Time remaining: ${scene.timeRemaining.toFixed(1)}s`, 580, 112);
-    ctx.fillText(
-      scene.track?.id === 'error-budget'
-        ? 'Press Space to hammer bugs, start, retry, or advance.'
-        : 'Press Space to jump, start, retry, or advance.',
-      580,
-      138,
-    );
-  }
-
   drawRack(x, y, width, height, index, outageActive) {
     const { ctx } = this;
     ctx.fillStyle = '#1b2432';
@@ -238,67 +217,6 @@ export class Renderer {
       ctx.fillRect(x + width - 30, unitY + 5, 8, 8);
       ctx.fillStyle = outageActive ? 'rgba(70, 90, 112, 0.55)' : 'rgba(150, 183, 214, 0.8)';
       ctx.fillRect(x + 18, unitY + 6, 34, 4);
-    }
-  }
-
-  drawAvailabilityWorkstation(outageActive, powerTripTimer) {
-    const { ctx } = this;
-    const deskX = 862;
-    const deskY = this.groundY - 122;
-    const unplugOffset = outageActive ? Math.min(24, powerTripTimer * 18) : 0;
-    const plugX = deskX + 164 + unplugOffset;
-    const monitorGlow = outageActive ? '#121820' : '#78ffd5';
-    const cableColor = outageActive ? '#ffb347' : '#8fd1ff';
-
-    ctx.fillStyle = '#445568';
-    ctx.fillRect(deskX + 12, deskY + 70, 180, 12);
-    ctx.fillRect(deskX + 24, deskY + 82, 10, 40);
-    ctx.fillRect(deskX + 170, deskY + 82, 10, 40);
-
-    ctx.fillStyle = '#1d2633';
-    ctx.fillRect(deskX + 34, deskY, 92, 58);
-    ctx.fillStyle = monitorGlow;
-    ctx.fillRect(deskX + 42, deskY + 8, 76, 42);
-    ctx.fillStyle = '#263344';
-    ctx.fillRect(deskX + 72, deskY + 58, 14, 16);
-    ctx.fillRect(deskX + 60, deskY + 74, 38, 8);
-
-    ctx.fillStyle = '#cfd8e3';
-    ctx.fillRect(deskX + 138, deskY + 32, 54, 16);
-
-    ctx.save();
-    ctx.lineWidth = 6;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = cableColor;
-    ctx.beginPath();
-    ctx.moveTo(deskX + 188, deskY + 40);
-    ctx.bezierCurveTo(
-      deskX + 226,
-      deskY + 68,
-      deskX + 214,
-      deskY + 104,
-      plugX,
-      deskY + 112,
-    );
-    ctx.stroke();
-    ctx.restore();
-
-    ctx.fillStyle = '#1d2430';
-    ctx.fillRect(plugX, deskY + 104, 18, 14);
-    ctx.fillStyle = outageActive ? '#ffd1a4' : '#d9ecff';
-    ctx.fillRect(plugX + 16, deskY + 107, 4, 3);
-    ctx.fillRect(plugX + 16, deskY + 112, 4, 3);
-
-    if (outageActive) {
-      ctx.strokeStyle = 'rgba(255, 196, 102, 0.85)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(deskX + 188, deskY + 40);
-      ctx.lineTo(deskX + 202, deskY + 30);
-      ctx.lineTo(deskX + 210, deskY + 42);
-      ctx.moveTo(deskX + 198, deskY + 54);
-      ctx.lineTo(deskX + 214, deskY + 46);
-      ctx.stroke();
     }
   }
 

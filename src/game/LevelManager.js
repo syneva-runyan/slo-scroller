@@ -21,13 +21,16 @@ export class LevelManager {
   }
 
   getTrackMenuItems() {
-    return this.levelTracks.map((track, index) => ({
+    return this.levelTracks.map((track) => ({
       id: track.id,
       label: track.label,
       description: track.description,
       levelCount: track.levels.length,
-      active: index === this.activeTrackIndex,
-      progressLabel: index === this.activeTrackIndex ? `Level ${this.currentIndex + 1} of ${track.levels.length}` : `${track.levels.length} levels`,
+      active: track.id === this.activeTrack.id,
+      sloLevelLabel:
+        track.id === this.activeTrack.id
+          ? `Level ${this.currentIndex + 1} of ${track.levels.length}`
+          : `${track.levels.length} levels`,
     }));
   }
 

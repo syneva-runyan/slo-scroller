@@ -7,7 +7,7 @@ test('updateElapsedSeconds advances while the run is active', () => {
   assert.equal(updateElapsedSeconds(3.2, 0.5, 'playing'), 3.7);
 });
 
-test('updateElapsedSeconds stops advancing after an SLA breach', () => {
+test('updateElapsedSeconds stops advancing after an SLO breach', () => {
   assert.equal(updateElapsedSeconds(4.8, 1.25, 'failed'), 4.8);
 });
 

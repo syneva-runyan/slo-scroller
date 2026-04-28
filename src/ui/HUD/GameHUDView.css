@@ -1,0 +1,118 @@
+.game-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.game-hud[hidden] {
+  display: none;
+}
+
+/* ── Top row: info panel (left) + progress section (right) ─────────────── */
+
+.game-hud-top {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 1.8%;
+  padding: 2.2%;
+}
+
+/* ── Left info panel ────────────────────────────────────────────────────── */
+
+.game-hud-panel {
+  display: grid;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(244, 249, 255, 0.88);
+  backdrop-filter: blur(4px);
+  min-width: 0;
+}
+
+.game-hud-level-title {
+  margin: 0;
+  font-size: clamp(11px, 1.65vw, 22px);
+  font-weight: 700;
+  color: #17304a;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.game-hud-concept {
+  margin: 0;
+  font-size: clamp(9px, 1.2vw, 16px);
+  color: #2f5168;
+  line-height: 1.3;
+}
+
+.game-hud-stat {
+  margin: 0;
+  font-size: clamp(9px, 1.2vw, 16px);
+  font-weight: 700;
+  color: #17304a;
+  line-height: 1.3;
+}
+
+.game-hud-stat[data-status='danger'] { color: #c43d4f; }
+.game-hud-stat[data-status='warning'] { color: #d97a18; }
+.game-hud-stat[data-status='ok'] { color: #17304a; }
+
+.game-hud-time {
+  margin: 0;
+  font-size: clamp(8px, 1.05vw, 14px);
+  color: #3a5a72;
+  line-height: 1.2;
+}
+
+/* ── Right section: progress bar + labels ──────────────────────────────── */
+
+.game-hud-right {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding-top: 2px;
+}
+
+.game-hud-progress-bar {
+  position: relative;
+  height: clamp(8px, 1.3vw, 18px);
+  border-radius: 4px;
+  background: rgba(23, 48, 74, 0.22);
+  border: 1px solid rgba(23, 48, 74, 0.18);
+}
+
+.game-hud-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 4px;
+  background: #3bc2ae;
+  transition: width 0.08s linear;
+}
+
+.game-hud-hit-marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  transform: translateX(-50%);
+  background: #ff5a6b;
+  border-radius: 2px;
+  z-index: 1;
+}
+
+.game-hud-target-label {
+  margin: 0;
+  font-size: clamp(8px, 1.1vw, 14px);
+  color: rgba(232, 241, 250, 0.82);
+  line-height: 1.3;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.game-hud-meta {
+  margin: 0;
+  font-size: clamp(8px, 1.05vw, 13px);
+  color: rgba(232, 241, 250, 0.55);
+  line-height: 1.3;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}

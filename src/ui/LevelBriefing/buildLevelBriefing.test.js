@@ -10,7 +10,6 @@ test('buildLevelBriefing maps level content into overlay briefing copy', () => {
       concept: 'Availability target: 99.5% uptime',
       lesson: 'Downtime windows get tighter as the target rises.',
       objective: 'Finish with one breach or fewer.',
-      operationalNote: 'Recurring hazards count as a reliability process problem.',
     },
     2,
   );
@@ -20,7 +19,22 @@ test('buildLevelBriefing maps level content into overlay briefing copy', () => {
     subtitle: 'Availability target: 99.5% uptime',
     intro: 'Downtime windows get tighter as the target rises.',
     objective: 'Finish with one breach or fewer.',
-    operationalNote: 'Recurring hazards count as a reliability process problem.',
+    targetLabel: undefined,
     cta: 'Press Space to start this level.',
   });
+});
+
+test('buildLevelBriefing uses a custom briefing CTA when provided', () => {
+  const briefing = buildLevelBriefing(
+    {
+      title: 'Availability Lab',
+      concept: 'Target: 75% availability in a rolling 10s window',
+      lesson: 'Tune the knobs and see how the math changes.',
+      objective: 'Keep the rolling window above target.',
+      briefingCta: 'Use Left/Right and Up/Down to tune the lab, then press Space to start.',
+    },
+    1,
+  );
+
+  assert.equal(briefing.cta, 'Use Left/Right and Up/Down to tune the lab, then press Space to start.');
 });

@@ -12,7 +12,7 @@ export function createTrackMenuList(tracks, { onSelectTrack }) {
     button.append(
       createElement('span', 'track-menu-item-title', track.label),
       createElement('span', 'track-menu-item-copy', track.description),
-      createElement('span', 'track-menu-item-meta', track.progressLabel),
+      createElement('span', 'track-menu-item-meta', track.sloLevelLabel),
     );
     list.append(button);
   }
