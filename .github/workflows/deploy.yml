@@ -41,3 +41,5 @@ jobs:
 
       - name: Deploy to gh-pages
         run: pnpm run deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
