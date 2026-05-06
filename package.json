@@ -8,7 +8,8 @@
     "start": "vite --open",
     "test": "node --test",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
     "vite": "^4.5.14",
