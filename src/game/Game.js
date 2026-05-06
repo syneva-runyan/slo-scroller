@@ -35,7 +35,7 @@ export class Game {
     this.shell.innerHTML = `
       <header class="game-header">
         <div>
-          <h1 class="game-title">SLO Scroller</h1>
+          <h1 class="game-title">99.9% Fun</h1>
           <p class="game-subtitle">Sprint through the data center, hop over cable hazards, and keep each level's SLO intact.</p>
         </div>
       </header>
