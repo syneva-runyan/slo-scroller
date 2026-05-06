@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Head -->
+  <rect x="9" y="1" width="14" height="11" fill="#ffd7a8"/>
+  <!-- Body -->
+  <rect x="5" y="12" width="22" height="11" fill="#46c2a8"/>
+  <!-- Left leg -->
+  <rect x="7" y="23" width="7" height="8" fill="#1e2f45"/>
+  <!-- Right leg -->
+  <rect x="18" y="23" width="7" height="8" fill="#1e2f45"/>
+</svg>
