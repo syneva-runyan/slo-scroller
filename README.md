@@ -48,7 +48,16 @@ CREATE POLICY "Public read scores"         ON scores  FOR SELECT TO anon USING (
 CREATE POLICY "Anyone can submit score"    ON scores  FOR INSERT TO anon WITH CHECK (true);
 ```
 
-**4. Add a validation trigger** in the SQL Editor:
+**4. Grant table privileges to the anon role** in the SQL Editor:
+
+```sql
+GRANT SELECT, INSERT ON public.players TO anon;
+GRANT SELECT, INSERT ON public.scores TO anon;
+```
+
+RLS policies control which rows the anon role can access, but Postgres also requires explicit table-level privileges. Without this step all requests return a 401.
+
+**5. Add a validation trigger** in the SQL Editor:
 
 ```sql
 CREATE OR REPLACE FUNCTION validate_score()
@@ -64,7 +73,7 @@ CREATE TRIGGER check_score_before_insert
   BEFORE INSERT ON scores FOR EACH ROW EXECUTE FUNCTION validate_score();
 ```
 
-**5. Add credentials** — copy the Project URL and publishable API key from **Project Settings → API**, then create `.env.local` at the repo root:
+**6. Add credentials** — copy the Project URL and publishable API key from **Project Settings → API**, then create `.env.local` at the repo root:
 
 ```
 VITE_SUPABASE_URL=https://<your-ref>.supabase.co
