@@ -42,20 +42,22 @@ CREATE INDEX ON scores (track_id, level_id, breaches, elapsed_seconds);
 ALTER TABLE players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scores  ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Public read players"        ON players FOR SELECT TO anon USING (true);
-CREATE POLICY "Players can insert"         ON players FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Public read scores"         ON scores  FOR SELECT TO anon USING (true);
-CREATE POLICY "Anyone can submit score"    ON scores  FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Public read players"          ON players FOR SELECT TO anon USING (true);
+CREATE POLICY "Players can insert"           ON players FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Players can update own record" ON players FOR UPDATE TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Public read scores"           ON scores  FOR SELECT TO anon USING (true);
+CREATE POLICY "Anyone can submit score"      ON scores  FOR INSERT TO anon WITH CHECK (true);
 ```
 
 **4. Grant table privileges to the anon role** in the SQL Editor:
 
 ```sql
-GRANT SELECT, INSERT ON public.players TO anon;
+-- players needs UPDATE because upsert on conflict does an UPDATE
+GRANT SELECT, INSERT, UPDATE ON public.players TO anon;
 GRANT SELECT, INSERT ON public.scores TO anon;
 ```
 
-RLS policies control which rows the anon role can access, but Postgres also requires explicit table-level privileges. Without this step all requests return a 401.
+RLS policies control which rows the anon role can access, but Postgres also requires explicit table-level privileges. Without this step all requests return a 401. `players` needs `UPDATE` because the upsert does an `UPDATE` on conflict when the player already exists.
 
 **5. Add a validation trigger** in the SQL Editor:
 
