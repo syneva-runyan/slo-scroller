@@ -38,6 +38,45 @@ export async function submitScore({ playerId, displayName, trackId, levelId, bre
 }
 
 /**
+ * Returns the 1-based rank a score would occupy for a given track/level.
+ * Counts how many existing scores are strictly better (fewer breaches, or
+ * same breaches but faster), then adds 1.
+ */
+export async function fetchRank({ trackId, levelId, breaches, elapsedSeconds }) {
+  if (!supabase) {
+    return null;
+  }
+
+  try {
+    // Scores that beat this one on breaches
+    const { count: betterBreaches, error: e1 } = await supabase
+      .from('scores')
+      .select('*', { count: 'exact', head: true })
+      .eq('track_id', trackId)
+      .eq('level_id', levelId)
+      .lt('breaches', breaches);
+
+    // Scores with same breaches but faster
+    const { count: fasterSame, error: e2 } = await supabase
+      .from('scores')
+      .select('*', { count: 'exact', head: true })
+      .eq('track_id', trackId)
+      .eq('level_id', levelId)
+      .eq('breaches', breaches)
+      .lt('elapsed_seconds', elapsedSeconds);
+
+    if (e1 || e2) {
+      return null;
+    }
+
+    return (betterBreaches ?? 0) + (fasterSame ?? 0) + 1;
+  } catch (err) {
+    console.error('fetchRank error:', err);
+    return null;
+  }
+}
+
+/**
  * Returns the top scores for a given track/level, ordered best-first.
  * "Best" means fewest breaches, then shortest elapsed time.
  */

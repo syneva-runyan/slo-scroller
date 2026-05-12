@@ -1,6 +1,8 @@
 import './TrackMenu.css';
 import { createTrackMenuHeader } from './TrackMenuHeader.js';
 import { createTrackMenuList } from './TrackMenuList.js';
+import { LeaderboardView } from '../Leaderboard/LeaderboardView.js';
+import { fetchTopScores } from '../../services/leaderboard.js';
 
 const WINDOW_OPTIONS = [4, 6, 8, 10, 12, 15];
 
@@ -59,19 +61,44 @@ export class TrackMenuView {
     this.root.className = 'track-menu';
     this.container.append(this.root);
     this.lastSignature = '';
+    this.leaderboardView = new LeaderboardView();
+    this.lastLeaderboardTrackId = null;
+    this.lastLeaderboardLevelId = null;
   }
 
-  render({ tracks, showExperimentToggle, experimentMode, rollingWindowSeconds }) {
+  _loadLeaderboard(trackId, levelId) {
+    if (trackId === this.lastLeaderboardTrackId && levelId === this.lastLeaderboardLevelId) {
+      return;
+    }
+    this.lastLeaderboardTrackId = trackId;
+    this.lastLeaderboardLevelId = levelId;
+    this.leaderboardView.renderLoading();
+    fetchTopScores({ trackId, levelId, limit: 5 })
+      .then((scores) => {
+        if (trackId === this.lastLeaderboardTrackId && levelId === this.lastLeaderboardLevelId) {
+          this.leaderboardView.render(scores);
+        }
+      })
+      .catch(console.error);
+  }
+
+  render({ tracks, showExperimentToggle, experimentMode, rollingWindowSeconds, activeLevelId }) {
     const signature = JSON.stringify({ tracks, showExperimentToggle, experimentMode, rollingWindowSeconds });
+    const activeTrack = tracks.find((t) => t.active) ?? tracks[0];
+
+    if (activeLevelId && activeTrack) {
+      this._loadLeaderboard(activeTrack.id, activeLevelId);
+    }
+
     if (signature === this.lastSignature) {
       return;
     }
 
     this.lastSignature = signature;
-    const activeTrack = tracks.find((t) => t.active) ?? tracks[0];
     this.root.replaceChildren(
       createTrackMenuHeader(activeTrack),
       createTrackMenuList(tracks, { onSelectTrack: this.onSelectTrack }),
+      this.leaderboardView.root,
       ...(showExperimentToggle && experimentMode
         ? [createExperimentSettings(rollingWindowSeconds, this.onRollingTimeWindowConfigChange)]
         : []),

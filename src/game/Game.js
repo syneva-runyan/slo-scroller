@@ -7,7 +7,7 @@ import { updateElapsedSeconds } from './timer.js';
 import { AvailabilityTracker } from './AvailabilityTracker.js';
 import { GameTracker } from './GameTracker.js';
 import { getOrCreatePlayerId, getDisplayName } from './identity.js';
-import { submitScore } from '../services/leaderboard.js';
+import { submitScore, fetchRank, fetchTopScores } from '../services/leaderboard.js';
 import './Game.css';
 import { Input } from '../systems/Input.js';
 import { Renderer } from '../systems/Renderer.js';
@@ -100,6 +100,7 @@ export class Game {
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
     this.hammerStrike = null;
+    this.leaderboard = null;
     this.resetTrackers();
   }
 
@@ -241,6 +242,7 @@ export class Game {
       levelCount: this.levelManager.levelCount,
       experimentMode: this.availability.experimentMode,
       rollingWindowSeconds: this.availability.rollingWindowSeconds,
+      leaderboard: this.leaderboard,
     });
 
     this.renderer.render({
@@ -282,6 +284,7 @@ export class Game {
       showExperimentToggle: isAvailabilityTrack(track),
       experimentMode: this.availability.experimentMode,
       rollingWindowSeconds: this.availability.rollingWindowSeconds,
+      activeLevelId: level.id,
     });
   }
 
@@ -300,6 +303,7 @@ export class Game {
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
     this.hammerStrike = null;
+    this.leaderboard = null;
     this.resetTrackers();
     this.player.reset();
   }
@@ -380,18 +384,25 @@ export class Game {
     const rollingAvailability = isAvailabilityTrack(track)
       ? this.availability.getRollingAvailability(this.elapsedSeconds, level)
       : null;
+    const breaches = this.breaches;
+    const elapsedSeconds = this.elapsedSeconds;
 
     promptDisplayName(this.stage).then((displayName) => {
-      submitScore({
+      return submitScore({
         playerId,
         displayName: displayName ?? getDisplayName() ?? 'Anonymous',
         trackId: track.id,
         levelId: level.id,
-        breaches: this.breaches,
+        breaches,
         rollingAvailability,
-        elapsedSeconds: this.elapsedSeconds,
-      });
-    });
+        elapsedSeconds,
+      }).then(() => Promise.all([
+        fetchRank({ trackId: track.id, levelId: level.id, breaches, elapsedSeconds }),
+        fetchTopScores({ trackId: track.id, levelId: level.id, limit: 5 }),
+      ]));
+    }).then(([rank, scores]) => {
+      this.leaderboard = { rank, scores };
+    }).catch(console.error);
   }
 
   recordCollisionIncident(track, level, obstacle) {
