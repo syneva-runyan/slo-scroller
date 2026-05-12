@@ -402,6 +402,7 @@ export class Game {
       ]));
     }).then(([rank, scores]) => {
       this.leaderboard = { rank, scores };
+      this.trackMenuView.invalidateLeaderboard();
     }).catch(console.error);
   }
 

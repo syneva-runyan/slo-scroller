@@ -82,6 +82,11 @@ export class TrackMenuView {
       .catch(console.error);
   }
 
+  invalidateLeaderboard() {
+    this.lastLeaderboardTrackId = null;
+    this.lastLeaderboardLevelId = null;
+  }
+
   render({ tracks, showExperimentToggle, experimentMode, rollingWindowSeconds, activeLevelId }) {
     const signature = JSON.stringify({ tracks, showExperimentToggle, experimentMode, rollingWindowSeconds });
     const activeTrack = tracks.find((t) => t.active) ?? tracks[0];
