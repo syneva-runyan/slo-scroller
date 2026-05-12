@@ -29,7 +29,7 @@ CREATE TABLE scores (
   level_id             TEXT NOT NULL,
   breaches             INT  NOT NULL,
   rolling_availability NUMERIC,
-  elapsed_seconds      NUMERIC NOT NULL,
+  obstacles_cleared    INT  NOT NULL DEFAULT 0,
   created_at           TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT scores_player_level_unique UNIQUE (player_id, track_id, level_id)
 );
@@ -83,24 +83,24 @@ CREATE OR REPLACE FUNCTION submit_score(
   p_level_id           TEXT,
   p_breaches           INT,
   p_rolling_availability NUMERIC,
-  p_elapsed_seconds    NUMERIC
+  p_obstacles_cleared  INT
 ) RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
-  INSERT INTO scores (player_id, track_id, level_id, breaches, rolling_availability, elapsed_seconds)
-  VALUES (p_player_id, p_track_id, p_level_id, p_breaches, p_rolling_availability, p_elapsed_seconds)
+  INSERT INTO scores (player_id, track_id, level_id, breaches, rolling_availability, obstacles_cleared)
+  VALUES (p_player_id, p_track_id, p_level_id, p_breaches, p_rolling_availability, p_obstacles_cleared)
   ON CONFLICT (player_id, track_id, level_id)
   DO UPDATE SET
     breaches             = EXCLUDED.breaches,
     rolling_availability = EXCLUDED.rolling_availability,
-    elapsed_seconds      = EXCLUDED.elapsed_seconds,
+    obstacles_cleared    = EXCLUDED.obstacles_cleared,
     created_at           = now()
   WHERE
     EXCLUDED.breaches < scores.breaches
-    OR (EXCLUDED.breaches = scores.breaches AND EXCLUDED.elapsed_seconds < scores.elapsed_seconds);
+    OR (EXCLUDED.breaches = scores.breaches AND EXCLUDED.obstacles_cleared > scores.obstacles_cleared);
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION submit_score(UUID, TEXT, TEXT, INT, NUMERIC, NUMERIC) TO anon;
+GRANT EXECUTE ON FUNCTION submit_score(UUID, TEXT, TEXT, INT, NUMERIC, INT) TO anon;
 ```
 
 **6. Add credentials** — copy the Project URL and publishable API key from **Project Settings → API**, then create `.env.local` at the repo root:

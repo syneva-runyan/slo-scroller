@@ -59,7 +59,7 @@ export class LeaderboardView {
 
       const statEl = document.createElement('span');
       statEl.className = 'leaderboard-stat';
-      statEl.textContent = `${score.breaches}B · ${score.elapsedSeconds.toFixed(1)}s`;
+      statEl.textContent = `${score.breaches}B · ${score.obstaclesCleared} cleared`;
 
       item.append(rankEl, nameEl, statEl);
       list.append(item);

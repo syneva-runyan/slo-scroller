@@ -94,6 +94,7 @@ export class Game {
     this.distance = 0;
     this.breaches = 0;
     this.obstacles = [];
+    this.obstaclesCleared = 0;
     this.spawnCooldown = 0;
     this.levelStartAt = 0;
     this.flashTimer = 0;
@@ -182,7 +183,15 @@ export class Game {
       obstacle.update(deltaSeconds, level.scrollSpeed);
     }
 
-    this.obstacles = this.obstacles.filter((obstacle) => !obstacle.isOffscreen());
+    this.obstacles = this.obstacles.filter((obstacle) => {
+      if (obstacle.isOffscreen()) {
+        if (!obstacle.hit) {
+          this.obstaclesCleared += 1;
+        }
+        return false;
+      }
+      return true;
+    });
     const hammerBounds = track.id === 'error-budget' ? this.getHammerBounds() : null;
 
     for (const obstacle of this.obstacles) {
@@ -297,6 +306,7 @@ export class Game {
     this.distance = 0;
     this.breaches = 0;
     this.obstacles = [];
+    this.obstaclesCleared = 0;
     this.spawnCooldown = 0.6;
     this.levelStartAt = time;
     this.flashTimer = 0;
@@ -361,6 +371,7 @@ export class Game {
     this.distance = 0;
     this.breaches = 0;
     this.obstacles = [];
+    this.obstaclesCleared = 0;
     this.spawnCooldown = 0;
     this.flashTimer = 0;
     this.elapsedSeconds = 0;
@@ -388,7 +399,7 @@ export class Game {
       ? this.availability.getRollingAvailability(this.elapsedSeconds, level)
       : null;
     const breaches = this.breaches;
-    const elapsedSeconds = this.elapsedSeconds;
+    const obstaclesCleared = this.obstaclesCleared;
 
     promptDisplayName(this.stage).then((displayName) => {
       return submitScore({
@@ -398,9 +409,9 @@ export class Game {
         levelId: level.id,
         breaches,
         rollingAvailability,
-        elapsedSeconds,
+        obstaclesCleared,
       }).then(() => Promise.all([
-        fetchRank({ trackId: track.id, levelId: level.id, breaches, elapsedSeconds }),
+        fetchRank({ trackId: track.id, levelId: level.id, breaches, obstaclesCleared }),
         fetchTopScores({ trackId: track.id, levelId: level.id, limit: 5 }),
       ]));
     }).then(([rank, scores]) => {

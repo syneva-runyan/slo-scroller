@@ -18,7 +18,7 @@ async function ensurePlayer(playerId, displayName) {
  * Submits a completed level score. Only keeps the personal best per player
  * per level — the DB function handles the conditional upsert server-side.
  */
-export async function submitScore({ playerId, displayName, trackId, levelId, breaches, rollingAvailability, elapsedSeconds }) {
+export async function submitScore({ playerId, displayName, trackId, levelId, breaches, rollingAvailability, obstaclesCleared }) {
   if (!supabase) {
     return;
   }
@@ -31,7 +31,7 @@ export async function submitScore({ playerId, displayName, trackId, levelId, bre
       p_level_id: levelId,
       p_breaches: breaches,
       p_rolling_availability: rollingAvailability ?? null,
-      p_elapsed_seconds: elapsedSeconds,
+      p_obstacles_cleared: obstaclesCleared,
     });
 
     if (error) {
@@ -45,9 +45,9 @@ export async function submitScore({ playerId, displayName, trackId, levelId, bre
 /**
  * Returns the 1-based rank a score would occupy for a given track/level.
  * Counts how many existing scores are strictly better (fewer breaches, or
- * same breaches but faster), then adds 1.
+ * same breaches but more obstacles cleared), then adds 1.
  */
-export async function fetchRank({ trackId, levelId, breaches, elapsedSeconds }) {
+export async function fetchRank({ trackId, levelId, breaches, obstaclesCleared }) {
   if (!supabase) {
     return null;
   }
@@ -61,20 +61,20 @@ export async function fetchRank({ trackId, levelId, breaches, elapsedSeconds }) 
       .eq('level_id', levelId)
       .lt('breaches', breaches);
 
-    // Scores with same breaches but faster
-    const { count: fasterSame, error: e2 } = await supabase
+    // Scores with same breaches but more obstacles cleared
+    const { count: betterSame, error: e2 } = await supabase
       .from('scores')
       .select('*', { count: 'exact', head: true })
       .eq('track_id', trackId)
       .eq('level_id', levelId)
       .eq('breaches', breaches)
-      .lt('elapsed_seconds', elapsedSeconds);
+      .gt('obstacles_cleared', obstaclesCleared);
 
     if (e1 || e2) {
       return null;
     }
 
-    return (betterBreaches ?? 0) + (fasterSame ?? 0) + 1;
+    return (betterBreaches ?? 0) + (betterSame ?? 0) + 1;
   } catch (err) {
     console.error('fetchRank error:', err);
     return null;
@@ -92,11 +92,11 @@ export async function fetchTopScores({ trackId, levelId, limit = 10 }) {
 
   const { data, error } = await supabase
     .from('scores')
-    .select('id, breaches, elapsed_seconds, created_at, players(display_name)')
+    .select('id, breaches, obstacles_cleared, created_at, players(display_name)')
     .eq('track_id', trackId)
     .eq('level_id', levelId)
     .order('breaches', { ascending: true })
-    .order('elapsed_seconds', { ascending: true })
+    .order('obstacles_cleared', { ascending: false })
     .limit(limit);
 
   if (error) {
@@ -107,6 +107,6 @@ export async function fetchTopScores({ trackId, levelId, limit = 10 }) {
   return data.map((row) => ({
     displayName: row.players?.display_name ?? 'Anonymous',
     breaches: row.breaches,
-    elapsedSeconds: row.elapsed_seconds,
+    obstaclesCleared: row.obstacles_cleared,
   }));
 }
