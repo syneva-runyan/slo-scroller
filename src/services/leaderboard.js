@@ -1,5 +1,9 @@
 import { supabase } from './supabase.js';
 
+export function isLeaderboardEnabled() {
+  return supabase !== null;
+}
+
 /**
  * Ensures a player row exists in the DB for the given local UUID.
  * Upserts so it is safe to call on every submission.

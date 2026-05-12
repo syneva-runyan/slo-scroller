@@ -7,7 +7,7 @@ import { updateElapsedSeconds } from './timer.js';
 import { AvailabilityTracker } from './AvailabilityTracker.js';
 import { GameTracker } from './GameTracker.js';
 import { getOrCreatePlayerId, getDisplayName } from './identity.js';
-import { submitScore, fetchRank, fetchTopScores } from '../services/leaderboard.js';
+import { submitScore, fetchRank, fetchTopScores, isLeaderboardEnabled } from '../services/leaderboard.js';
 import './Game.css';
 import { Input } from '../systems/Input.js';
 import { Renderer } from '../systems/Renderer.js';
@@ -380,6 +380,9 @@ export class Game {
   }
 
   onLevelComplete(level, track) {
+    if (!isLeaderboardEnabled()) {
+      return;
+    }
     const playerId = getOrCreatePlayerId();
     const rollingAvailability = isAvailabilityTrack(track)
       ? this.availability.getRollingAvailability(this.elapsedSeconds, level)
