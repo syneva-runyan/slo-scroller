@@ -15,7 +15,8 @@ async function ensurePlayer(playerId, displayName) {
 }
 
 /**
- * Submits a completed level score. Fire-and-forget — never throws.
+ * Submits a completed level score. Only keeps the personal best per player
+ * per level — the DB function handles the conditional upsert server-side.
  */
 export async function submitScore({ playerId, displayName, trackId, levelId, breaches, rollingAvailability, elapsedSeconds }) {
   if (!supabase) {
@@ -24,13 +25,13 @@ export async function submitScore({ playerId, displayName, trackId, levelId, bre
 
   try {
     await ensurePlayer(playerId, displayName);
-    const { error } = await supabase.from('scores').insert({
-      player_id: playerId,
-      track_id: trackId,
-      level_id: levelId,
-      breaches,
-      rolling_availability: rollingAvailability ?? null,
-      elapsed_seconds: elapsedSeconds,
+    const { error } = await supabase.rpc('submit_score', {
+      p_player_id: playerId,
+      p_track_id: trackId,
+      p_level_id: levelId,
+      p_breaches: breaches,
+      p_rolling_availability: rollingAvailability ?? null,
+      p_elapsed_seconds: elapsedSeconds,
     });
 
     if (error) {

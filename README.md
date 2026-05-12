@@ -30,7 +30,8 @@ CREATE TABLE scores (
   breaches             INT  NOT NULL,
   rolling_availability NUMERIC,
   elapsed_seconds      NUMERIC NOT NULL,
-  created_at           TIMESTAMPTZ DEFAULT now()
+  created_at           TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT scores_player_level_unique UNIQUE (player_id, track_id, level_id)
 );
 
 CREATE INDEX ON scores (track_id, level_id, breaches, elapsed_seconds);
@@ -59,7 +60,7 @@ GRANT SELECT, INSERT ON public.scores TO anon;
 
 RLS policies control which rows the anon role can access, but Postgres also requires explicit table-level privileges. Without this step all requests return a 401. `players` needs `UPDATE` because the upsert does an `UPDATE` on conflict when the player already exists.
 
-**5. Add a validation trigger** in the SQL Editor:
+**5. Add a validation trigger and personal-best upsert function** in the SQL Editor:
 
 ```sql
 CREATE OR REPLACE FUNCTION validate_score()
@@ -73,6 +74,33 @@ $$;
 
 CREATE TRIGGER check_score_before_insert
   BEFORE INSERT ON scores FOR EACH ROW EXECUTE FUNCTION validate_score();
+
+-- Conditional upsert: only replaces an existing score if the new run is better.
+-- Runs as SECURITY DEFINER (db owner) so no UPDATE grant is needed on scores.
+CREATE OR REPLACE FUNCTION submit_score(
+  p_player_id          UUID,
+  p_track_id           TEXT,
+  p_level_id           TEXT,
+  p_breaches           INT,
+  p_rolling_availability NUMERIC,
+  p_elapsed_seconds    NUMERIC
+) RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  INSERT INTO scores (player_id, track_id, level_id, breaches, rolling_availability, elapsed_seconds)
+  VALUES (p_player_id, p_track_id, p_level_id, p_breaches, p_rolling_availability, p_elapsed_seconds)
+  ON CONFLICT (player_id, track_id, level_id)
+  DO UPDATE SET
+    breaches             = EXCLUDED.breaches,
+    rolling_availability = EXCLUDED.rolling_availability,
+    elapsed_seconds      = EXCLUDED.elapsed_seconds,
+    created_at           = now()
+  WHERE
+    EXCLUDED.breaches < scores.breaches
+    OR (EXCLUDED.breaches = scores.breaches AND EXCLUDED.elapsed_seconds < scores.elapsed_seconds);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION submit_score(UUID, TEXT, TEXT, INT, NUMERIC, NUMERIC) TO anon;
 ```
 
 **6. Add credentials** — copy the Project URL and publishable API key from **Project Settings → API**, then create `.env.local` at the repo root:
