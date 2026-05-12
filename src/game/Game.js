@@ -6,6 +6,8 @@ import { isAvailabilityTrack } from './trackUtils.js';
 import { updateElapsedSeconds } from './timer.js';
 import { AvailabilityTracker } from './AvailabilityTracker.js';
 import { GameTracker } from './GameTracker.js';
+import { getOrCreatePlayerId, getDisplayName } from './identity.js';
+import { submitScore } from '../services/leaderboard.js';
 import './Game.css';
 import { Input } from '../systems/Input.js';
 import { Renderer } from '../systems/Renderer.js';
@@ -14,6 +16,8 @@ import { HUD } from '../ui/HUD/HUD.js';
 import { GameHUDView } from '../ui/HUD/GameHUDView.js';
 import { OverlayView } from '../ui/OverlayView/OverlayView.js';
 import { TrackMenuView } from '../ui/TrackMenu/TrackMenuView.js';
+import { promptDisplayName } from '../ui/DisplayNamePrompt/DisplayNamePrompt.js';
+import '../ui/DisplayNamePrompt/DisplayNamePrompt.css';
 
 const WIDTH = 1280;
 const HEIGHT = 720;
@@ -212,6 +216,7 @@ export class Game {
 
     if (this.elapsedSeconds >= level.durationSeconds) {
       this.state = 'level-complete';
+      this.onLevelComplete(level, track);
     }
   }
 
@@ -368,6 +373,25 @@ export class Game {
   resetTrackers() {
     this.availability.reset();
     this.defaultTracker.reset();
+  }
+
+  onLevelComplete(level, track) {
+    const playerId = getOrCreatePlayerId();
+    const rollingAvailability = isAvailabilityTrack(track)
+      ? this.availability.getRollingAvailability(this.elapsedSeconds, level)
+      : null;
+
+    promptDisplayName(this.stage).then((displayName) => {
+      submitScore({
+        playerId,
+        displayName: displayName ?? getDisplayName() ?? 'Anonymous',
+        trackId: track.id,
+        levelId: level.id,
+        breaches: this.breaches,
+        rollingAvailability,
+        elapsedSeconds: this.elapsedSeconds,
+      });
+    });
   }
 
   recordCollisionIncident(track, level, obstacle) {

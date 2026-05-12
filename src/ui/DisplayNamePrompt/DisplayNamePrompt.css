@@ -1,0 +1,57 @@
+.display-name-backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 16, 24, 0.72);
+  z-index: 20;
+}
+
+.display-name-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px 32px;
+  background: var(--surface-card, #1b2533);
+  border: 1px solid rgba(118, 173, 220, 0.22);
+  border-radius: 16px;
+  min-width: 280px;
+  max-width: 380px;
+  width: 90%;
+}
+
+.display-name-title {
+  margin: 0;
+  font-size: 1rem;
+  color: #e8f0fa;
+}
+
+.display-name-input {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(118, 173, 220, 0.3);
+  background: #0f1825;
+  color: #e8f0fa;
+  font-size: 1rem;
+  outline: none;
+}
+
+.display-name-input:focus {
+  border-color: rgba(118, 173, 220, 0.7);
+}
+
+.display-name-submit {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #3a7bd5;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.display-name-submit:hover {
+  background: #4a8be5;
+}
