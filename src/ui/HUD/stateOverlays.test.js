@@ -12,7 +12,7 @@ test('buildMenuOverlay includes the selected track label and level count', () =>
   const overlay = buildMenuOverlay({ label: 'Availability' }, 3);
 
   assert.equal(overlay.title, 'Run the SLO lane');
-  assert.equal(overlay.subtitle, 'Track selected: Availability (3 levels)');
+  assert.equal(overlay.subtitle, 'Track selected: Availability');
   assert.match(overlay.body, /Availability, Response Time, and Error Budget/);
 });
 

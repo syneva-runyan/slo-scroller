@@ -116,3 +116,25 @@
   line-height: 1.3;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
+
+@media (max-width: 720px) {
+  .game-hud-top {
+    grid-template-columns: 1fr;
+    padding: 1.5%;
+    gap: 1%;
+  }
+
+  .game-hud-right {
+    /* stretch edge-to-edge across the canvas */
+    margin-inline: -1.5%;
+    padding-inline: 1.5%;
+  }
+
+  .game-hud-level-title {
+    white-space: normal;
+  }
+
+  .game-hud-target-label {
+    font-size: clamp(11px, 2vw, 16px);
+  }
+}
