@@ -6,6 +6,8 @@ import { isAvailabilityTrack } from './trackUtils.js';
 import { updateElapsedSeconds } from './timer.js';
 import { AvailabilityTracker } from './AvailabilityTracker.js';
 import { GameTracker } from './GameTracker.js';
+import { getOrCreatePlayerId, getDisplayName } from './identity.js';
+import { submitScore, fetchRank, fetchTopScores, isLeaderboardEnabled } from '../services/leaderboard.js';
 import './Game.css';
 import { Input } from '../systems/Input.js';
 import { Renderer } from '../systems/Renderer.js';
@@ -14,6 +16,8 @@ import { HUD } from '../ui/HUD/HUD.js';
 import { GameHUDView } from '../ui/HUD/GameHUDView.js';
 import { OverlayView } from '../ui/OverlayView/OverlayView.js';
 import { TrackMenuView } from '../ui/TrackMenu/TrackMenuView.js';
+import { promptDisplayName } from '../ui/DisplayNamePrompt/DisplayNamePrompt.js';
+import '../ui/DisplayNamePrompt/DisplayNamePrompt.css';
 
 const WIDTH = 1280;
 const HEIGHT = 720;
@@ -102,12 +106,14 @@ export class Game {
     this.distance = 0;
     this.breaches = 0;
     this.obstacles = [];
+    this.obstaclesCleared = 0;
     this.spawnCooldown = 0;
     this.levelStartAt = 0;
     this.flashTimer = 0;
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
     this.hammerStrike = null;
+    this.leaderboard = null;
     this.resetTrackers();
   }
 
@@ -189,7 +195,15 @@ export class Game {
       obstacle.update(deltaSeconds, level.scrollSpeed);
     }
 
-    this.obstacles = this.obstacles.filter((obstacle) => !obstacle.isOffscreen());
+    this.obstacles = this.obstacles.filter((obstacle) => {
+      if (obstacle.isOffscreen()) {
+        if (!obstacle.hit) {
+          this.obstaclesCleared += 1;
+        }
+        return false;
+      }
+      return true;
+    });
     const hammerBounds = track.id === 'error-budget' ? this.getHammerBounds() : null;
 
     for (const obstacle of this.obstacles) {
@@ -224,6 +238,7 @@ export class Game {
 
     if (this.elapsedSeconds >= level.durationSeconds) {
       this.state = 'level-complete';
+      this.onLevelComplete(level, track);
     }
   }
 
@@ -250,6 +265,7 @@ export class Game {
       levelCount: this.levelManager.levelCount,
       experimentMode: this.availability.experimentMode,
       rollingWindowSeconds: this.availability.rollingWindowSeconds,
+      leaderboard: this.leaderboard,
     });
 
     this.renderer.render({
@@ -291,6 +307,7 @@ export class Game {
       showExperimentToggle: isAvailabilityTrack(track),
       experimentMode: this.availability.experimentMode,
       rollingWindowSeconds: this.availability.rollingWindowSeconds,
+      activeLevelId: level.id,
     });
   }
 
@@ -303,12 +320,14 @@ export class Game {
     this.distance = 0;
     this.breaches = 0;
     this.obstacles = [];
+    this.obstaclesCleared = 0;
     this.spawnCooldown = 0.6;
     this.levelStartAt = time;
     this.flashTimer = 0;
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
     this.hammerStrike = null;
+    this.leaderboard = null;
     this.resetTrackers();
     this.player.reset();
   }
@@ -367,6 +386,7 @@ export class Game {
     this.distance = 0;
     this.breaches = 0;
     this.obstacles = [];
+    this.obstaclesCleared = 0;
     this.spawnCooldown = 0;
     this.flashTimer = 0;
     this.elapsedSeconds = 0;
@@ -383,6 +403,36 @@ export class Game {
   resetTrackers() {
     this.availability.reset();
     this.defaultTracker.reset();
+  }
+
+  onLevelComplete(level, track) {
+    if (!isLeaderboardEnabled()) {
+      return;
+    }
+    const playerId = getOrCreatePlayerId();
+    const rollingAvailability = isAvailabilityTrack(track)
+      ? this.availability.getRollingAvailability(this.elapsedSeconds, level)
+      : null;
+    const breaches = this.breaches;
+    const obstaclesCleared = this.obstaclesCleared;
+
+    promptDisplayName(this.stage).then((displayName) => {
+      return submitScore({
+        playerId,
+        displayName: displayName ?? getDisplayName() ?? 'Anonymous',
+        trackId: track.id,
+        levelId: level.id,
+        breaches,
+        rollingAvailability,
+        obstaclesCleared,
+      }).then(() => Promise.all([
+        fetchRank({ trackId: track.id, levelId: level.id, breaches, obstaclesCleared }),
+        fetchTopScores({ trackId: track.id, levelId: level.id, limit: 5 }),
+      ]));
+    }).then(([rank, scores]) => {
+      this.leaderboard = { rank, scores };
+      this.trackMenuView.invalidateLeaderboard();
+    }).catch(console.error);
   }
 
   recordCollisionIncident(track, level, obstacle) {
