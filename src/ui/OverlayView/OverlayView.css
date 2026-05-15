@@ -100,4 +100,9 @@
   .game-overlay-card {
     border-radius: 18px;
   }
+
+  .game-overlay-body,
+  .game-overlay-section-body {
+    font-size: 0.9rem;
+  }
 }

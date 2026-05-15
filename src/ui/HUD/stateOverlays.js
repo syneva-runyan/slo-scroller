@@ -1,4 +1,5 @@
 import { isAvailabilityTrack } from '../../game/trackUtils.js';
+import { ctaAction } from '../shared/ctaText.js';
 
 export function buildLevelCompleteOverlay(level, track, levelIndex, levelCount, breaches, rollingAvailability, availabilityTarget) {
   if (isAvailabilityTrack(track)) {
@@ -8,7 +9,7 @@ export function buildLevelCompleteOverlay(level, track, levelIndex, levelCount, 
       title: `Level ${levelIndex} complete!`,
       subtitle: level.title,
       body: `${level.lesson} \n\n   You closed this stage with rolling availability at ${(rollingAvailability * 100).toFixed(0)}%, safely above the ${(availabilityTarget * 100).toFixed(0)}% target. The service stayed usable enough to keep the promise.`,
-      cta: levelIndex < levelCount ? 'Press Space to load the next SLO.' : 'Press Space to view the campaign summary.',
+      cta: levelIndex < levelCount ? `${ctaAction} to load the next SLO.` : `${ctaAction} to view the campaign summary.`,
     };
   }
 
@@ -18,7 +19,7 @@ export function buildLevelCompleteOverlay(level, track, levelIndex, levelCount, 
     title: `Level ${levelIndex} complete!`,
     subtitle: level.title,
     body: `${level.lesson} You finished this stage with ${breaches} breach${breaches === 1 ? '' : 'es'}, which stayed within the allowed budget and kept the run on track.`,
-    cta: levelIndex < levelCount ? 'Press Space to load the next SLO.' : 'Press Space to view the campaign summary.',
+    cta: levelIndex < levelCount ? `${ctaAction} to load the next SLO.` : `${ctaAction} to view the campaign summary.`,
   };
 }
 
@@ -28,7 +29,7 @@ export function buildFailedOverlay(level, track, rollingAvailability, availabili
       title: 'SLO breached',
       subtitle: level.title,
       body: `Your rolling availability dropped to ${(rollingAvailability * 100).toFixed(0)}%, below the ${(availabilityTarget * 100).toFixed(0)}% target. Reset and try again to keep the service usable more consistently.`,
-      cta: 'Press Space to retry the current level.',
+      cta: `${ctaAction} to retry the current level.`,
     };
   }
 
@@ -36,7 +37,7 @@ export function buildFailedOverlay(level, track, rollingAvailability, availabili
     title: 'SLO breached',
     subtitle: level.title,
     body: `This level only allowed ${level.allowedBreaches} breach${level.allowedBreaches === 1 ? '' : 'es'}. Reset and try again to see how stricter SLOs reduce room for mistakes.`,
-    cta: 'Press Space to retry the current level.',
+    cta: `${ctaAction} to retry the current level.`,
   };
 }
 
@@ -44,7 +45,7 @@ export function buildFinishedOverlay(track) {
   return {
     title: `${track.label} track complete`,
     subtitle: 'You cleared this SLO difficulty ladder',
-    body: 'Use the concept menu to switch tracks, or press Space to restart the selected track from level 1.',
-    cta: 'Press Space to restart this track.',
+    body: `Use the concept menu to switch tracks, or tap to restart the selected track from level 1.`,
+    cta: `${ctaAction} to restart this track.`,
   };
 }

@@ -21,6 +21,14 @@ const GROUND_Y = 560;
 const MAX_DELTA_SECONDS = 0.033;
 const PLAYER_X = 180;
 const HAMMER_STRIKE_SECONDS = 0.24;
+// Scale up sprites on narrow screens so they remain legible. Formula keeps
+// things at natural size on desktop (>= 720px) and scales up to 1.75× on
+// the smallest phones (~375px).
+const SPRITE_SCALE = Math.max(1, Math.min(1.75, (1280 / Math.max(window.innerWidth, 720)) * 0.98));
+// Reduce SHIP IT button size on mobile so it stays jumpable at larger scales.
+const BUTTON_OBSTACLE_SCALE = SPRITE_SCALE > 1 ? 0.82 : 1;
+// Slightly shrink all obstacles on mobile so the game stays playable.
+const MOBILE_OBSTACLE_SCALE = SPRITE_SCALE > 1 ? 0.88 : 1;
 
 export class Game {
   constructor(container) {
@@ -52,6 +60,8 @@ export class Game {
     this.menuContainer = this.shell.querySelector('.game-menu');
     this.stage = this.shell.querySelector('.game-stage');
     this.controlsPill = this.shell.querySelector('.game-controls-pill');
+    const isTouchDevice = navigator.maxTouchPoints > 0;
+    this.controlsPill.textContent = isTouchDevice ? 'Control: tap to jump' : 'Control: press Space to jump';
     this.stage.append(this.canvas);
     this.container.append(this.shell);
 
@@ -60,12 +70,13 @@ export class Game {
       throw new Error('2D context not available');
     }
 
-    this.input = new Input(window);
+    this.input = new Input(window, this.canvas);
     this.levelManager = new LevelManager(levelTracks);
     this.renderer = new Renderer(this.ctx, {
       width: WIDTH,
       height: HEIGHT,
       groundY: GROUND_Y,
+      spriteScale: SPRITE_SCALE,
     });
     this.hud = new HUD();
     this.gameHudView = new GameHUDView(this.stage);
@@ -80,6 +91,7 @@ export class Game {
     this.player = new Player({
       x: PLAYER_X,
       groundY: GROUND_Y,
+      spriteScale: SPRITE_SCALE,
     });
 
     this.availability = new AvailabilityTracker();
@@ -220,8 +232,10 @@ export class Game {
     const track = this.levelManager.getCurrentTrack();
     const activeTracker = this.getTrackerForTrack(track);
     if (this.controlsPill) {
-      this.controlsPill.textContent =
-        track.id === 'error-budget'
+      const isTouchDevice = navigator.maxTouchPoints > 0;
+      this.controlsPill.textContent = isTouchDevice
+        ? 'Control: tap to jump'
+        : track.id === 'error-budget'
           ? 'Control: press Space to swing the hammer'
           : 'Control: press Space to jump';
     }
@@ -301,12 +315,13 @@ export class Game {
 
   spawnObstacle(level) {
     const profile = level.obstacleProfiles[Math.floor(Math.random() * level.obstacleProfiles.length)];
+    const profileScale = profile.kind === 'button' ? BUTTON_OBSTACLE_SCALE : 1;
     this.obstacles.push(
       new Obstacle({
         x: WIDTH + 40,
         groundY: GROUND_Y,
-        width: profile.width,
-        height: profile.height,
+        width: profile.width * SPRITE_SCALE * MOBILE_OBSTACLE_SCALE * profileScale,
+        height: profile.height * SPRITE_SCALE * MOBILE_OBSTACLE_SCALE * profileScale,
         color: profile.color,
         label: profile.label,
         kind: profile.kind,
