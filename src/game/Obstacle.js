@@ -1,5 +1,5 @@
 export class Obstacle {
-  constructor({ x, groundY, width, height, color, label, kind = 'crate' }) {
+  constructor({ x, groundY, width, height, color, label, kind = 'crate', disposition = null }) {
     this.x = x;
     this.groundY = groundY;
     this.width = width;
@@ -7,8 +7,11 @@ export class Obstacle {
     this.color = color;
     this.label = label;
     this.kind = kind;
+    this.disposition = disposition;
     this.hit = false;
     this.squashTimer = 0;
+    this.dispositionRecorded = false;
+    this.falseReject = false;
   }
 
   update(deltaSeconds, scrollSpeed) {
