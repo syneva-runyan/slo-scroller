@@ -1,5 +1,5 @@
 import './GameHUDView.css';
-import { isAvailabilityTrack } from '../../game/trackUtils.js';
+import { isAvailabilityTrack, isAIHallucinationTrack } from '../../game/trackUtils.js';
 
 function el(tag, className) {
   const node = document.createElement(tag);
@@ -47,11 +47,12 @@ export class GameHUDView {
 
   render({ level, track, state, progressRatio, progressHitMarkers,
            rollingAvailability, availabilityTarget, availabilityWindowSeconds,
-           breaches, elapsedSeconds }) {
+           breaches, elapsedSeconds, hallucination }) {
     this.root.hidden = state === 'menu';
     if (state === 'menu') return;
 
     const avail = isAvailabilityTrack(track);
+    const ai = isAIHallucinationTrack(track);
     const patch = (text) => patchWindow(text, level.availabilityWindowSeconds, availabilityWindowSeconds);
 
     // Left panel
@@ -64,6 +65,16 @@ export class GameHUDView {
       this.statEl.textContent =
         `${(rollingAvailability * 100).toFixed(0)}% / ${(availabilityTarget * 100).toFixed(0)}% target`;
       this.statEl.dataset.status = gap < 0 ? 'danger' : gap <= 0.05 ? 'warning' : 'ok';
+    } else if (ai && hallucination) {
+      const accuracy = hallucination.getAccuracy();
+      const remaining = Math.max(0, level.allowedBreaches - breaches);
+      this.statEl.textContent =
+        `Accuracy ${(accuracy * 100).toFixed(0)}% • ✘ ${breaches}/${level.allowedBreaches} (${remaining} left) • shipped ${hallucination.falseAccepts}, suppressed ${hallucination.falseRejects}`;
+      this.statEl.dataset.status = breaches >= level.allowedBreaches
+        ? 'danger'
+        : breaches > 0
+          ? 'warning'
+          : 'ok';
     } else {
       this.statEl.textContent = `Breaches: ${breaches} / ${level.allowedBreaches}`;
       this.statEl.removeAttribute('data-status');

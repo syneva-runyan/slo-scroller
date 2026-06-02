@@ -5,7 +5,7 @@ const FLOOR_SHADOW = '#b6c0cb';
 
 import { DeployBugButton } from './collisionItems/DeployBugButton.js';
 import { AvailabilityWorkstation } from './AvailabilityWorkstation.js';
-import { isAvailabilityTrack } from '../game/trackUtils.js';
+import { isAvailabilityTrack, isAIHallucinationTrack } from '../game/trackUtils.js';
 
 export class Renderer {
   constructor(ctx, { width, height, groundY, spriteScale = 1 }) {
@@ -25,7 +25,7 @@ export class Renderer {
     this.drawBackground(scene.distance, scene.track, scene.powerTripTimer);
     this.drawGround(scene.distance);
     this.drawFinishMarker(scene.timeRemaining, scene.level.scrollSpeed);
-    this.drawObstacles(scene.obstacles, scene.track?.id === 'error-budget');
+    this.drawObstacles(scene.obstacles, scene.track?.id === 'error-budget', scene.elapsedSeconds);
     this.drawPlayer(
       scene.player,
       scene.state === 'playing' ? scene.flashTimer : 0,
@@ -95,6 +95,10 @@ export class Renderer {
     if (isAvailabilityTrack(track)) {
       this.availabilityWorkstation.draw(ctx, outageActive, powerTripTimer, distance);
     }
+
+    if (isAIHallucinationTrack(track)) {
+      this.drawAIBackdrop(distance);
+    }
   }
 
   drawGround(distance) {
@@ -139,11 +143,15 @@ export class Renderer {
     ctx.fillRect(x + 12, this.groundY - 180, 70, 42);
   }
 
-  drawObstacles(obstacles, bugTrackActive = false) {
+  drawObstacles(obstacles, bugTrackActive = false, elapsedSeconds = 0) {
     const { ctx } = this;
 
     for (const obstacle of obstacles) {
       const bounds = obstacle.getBounds();
+      if (obstacle.kind === 'ai-answer') {
+        this.drawAIAnswer(bounds, obstacle, elapsedSeconds);
+        continue;
+      }
       if (obstacle.kind === 'button') {
         this.deployBugButton.draw(ctx, bounds, obstacle.color, obstacle.hit);
       } else if (obstacle.kind === 'cable') {
@@ -387,5 +395,129 @@ export class Renderer {
     ctx.fillStyle = `rgba(31, 39, 57, ${impactRatio * 0.75})`;
     ctx.fillRect(bounds.x + bounds.width * 0.18, bounds.y + bounds.height * 0.54, bounds.width * 0.64, (8 + pulse * 8) * s);
     ctx.restore();
+  }
+
+  drawAIBackdrop(distance) {
+    const { ctx } = this;
+    // Soft violet-to-teal model-serving gradient overlay.
+    const gradient = ctx.createLinearGradient(0, 90, 0, this.groundY);
+    gradient.addColorStop(0, 'rgba(168, 85, 247, 0.18)');
+    gradient.addColorStop(1, 'rgba(34, 211, 238, 0.10)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 90, this.width, this.groundY - 90);
+
+    // Faint token streams scrolling with the world.
+    ctx.save();
+    ctx.font = '14px monospace';
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.18)';
+    const tokens = ['<tok>', '0xA1', '">"', 'cite', '{...}', 'ref?', '\u00b6'];
+    const baseOffset = -(distance * 0.35) % 180;
+    for (let row = 0; row < 4; row += 1) {
+      const rowY = 130 + row * 90;
+      for (let col = -1; col < 10; col += 1) {
+        const x = baseOffset + col * 180 + (row % 2) * 60;
+        const token = tokens[(row * 3 + col + 7) % tokens.length];
+        ctx.fillText(token, x, rowY);
+      }
+    }
+    ctx.restore();
+  }
+
+  drawAIAnswer(bounds, obstacle, elapsedSeconds = 0) {
+    const { ctx } = this;
+    const s = this.spriteScale;
+    const grounded = obstacle.disposition === 'grounded';
+    const hit = obstacle.hit;
+    const baseAlpha = hit ? 0.4 : grounded ? 0.92 : 1;
+
+    ctx.save();
+    ctx.globalAlpha = baseAlpha;
+
+    // Hallucination glitch jitter
+    let jitterX = 0;
+    let jitterY = 0;
+    if (!grounded && !hit) {
+      const t = elapsedSeconds * 14 + bounds.x * 0.013;
+      jitterX = Math.sin(t) * 1.6;
+      jitterY = Math.cos(t * 1.7) * 1.2;
+    }
+
+    const x = bounds.x + jitterX;
+    const y = bounds.y + jitterY;
+    const w = bounds.width;
+    const h = bounds.height;
+
+    // Chat bubble body
+    const fill = grounded ? '#0e7490' : '#6b21a8';
+    const stroke = grounded ? '#5eead4' : '#e879f9';
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2.5;
+    const radius = 10 * s;
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    // Bubble tail at bottom
+    ctx.lineTo(x + w * 0.48, y + h);
+    ctx.lineTo(x + w * 0.36, y + h + 10 * s);
+    ctx.lineTo(x + w * 0.34, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Glitch overlay for hallucinations
+    if (!grounded && !hit) {
+      const stripeY = y + ((elapsedSeconds * 90) % h);
+      ctx.fillStyle = 'rgba(232, 121, 249, 0.18)';
+      ctx.fillRect(x, stripeY, w, 3);
+    }
+
+    // Cite / unsourced badge
+    const badgeText = grounded ? '\u2713 cited' : '\u26a0 unsourced';
+    const badgeColor = grounded ? '#022c22' : '#3b0764';
+    const badgeBg = grounded ? '#5eead4' : '#fbcfe8';
+    ctx.font = `bold ${Math.round(11 * s)}px Trebuchet MS`;
+    const badgeW = ctx.measureText(badgeText).width + 14 * s;
+    const badgeH = 18 * s;
+    ctx.fillStyle = badgeBg;
+    ctx.fillRect(x + 8 * s, y + 8 * s, badgeW, badgeH);
+    ctx.fillStyle = badgeColor;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(badgeText, x + 15 * s, y + 8 * s + badgeH / 2);
+    ctx.textBaseline = 'alphabetic';
+
+    // Answer label inside bubble (slightly jittered glyphs for hallucinations).
+    ctx.fillStyle = '#f1f5f9';
+    ctx.font = `${Math.round(14 * s)}px Trebuchet MS`;
+    ctx.textAlign = 'center';
+    const labelX = x + w * 0.5;
+    const labelY = y + h * 0.72;
+    if (grounded) {
+      ctx.fillText(obstacle.label, labelX, labelY);
+    } else {
+      // Per-character jitter to suggest unstable output.
+      const text = obstacle.label;
+      const totalW = ctx.measureText(text).width;
+      let cursor = labelX - totalW / 2;
+      for (let i = 0; i < text.length; i += 1) {
+        const ch = text[i];
+        const chWidth = ctx.measureText(ch).width;
+        const j = Math.sin(elapsedSeconds * 18 + i * 1.3) * 1.3 * s;
+        ctx.fillText(ch, cursor + chWidth / 2, labelY + j);
+        cursor += chWidth;
+      }
+    }
+    ctx.textAlign = 'start';
+
+    ctx.restore();
+
+    // "Shipped" pop indicator stays minimal; the label above already conveys intent.
   }
 }

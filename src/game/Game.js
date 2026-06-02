@@ -2,10 +2,11 @@ import { Player } from './Player.js';
 import { Obstacle } from './Obstacle.js';
 import { LevelManager } from './LevelManager.js';
 import { levelTracks } from './levels.js';
-import { isAvailabilityTrack } from './trackUtils.js';
+import { isAvailabilityTrack, isAIHallucinationTrack } from './trackUtils.js';
 import { updateElapsedSeconds } from './timer.js';
 import { AvailabilityTracker } from './AvailabilityTracker.js';
 import { GameTracker } from './GameTracker.js';
+import { HallucinationTracker } from './HallucinationTracker.js';
 import { getOrCreatePlayerId, getDisplayName } from './identity.js';
 import { submitScore, fetchRank, fetchTopScores, isLeaderboardEnabled } from '../services/leaderboard.js';
 import './Game.css';
@@ -100,6 +101,7 @@ export class Game {
 
     this.availability = new AvailabilityTracker();
     this.defaultTracker = new GameTracker();
+    this.hallucination = new HallucinationTracker();
     this.animationFrameId = 0;
     this.lastTime = 0;
     this.state = 'menu';
@@ -195,10 +197,42 @@ export class Game {
       obstacle.update(deltaSeconds, level.scrollSpeed);
     }
 
+    // On the AI track, a player who is airborne while overlapping a grounded
+    // answer has "flagged" it -> false reject (suppressed a real answer).
+    if (isAIHallucinationTrack(track) && !this.player.onGround) {
+      const playerBounds = this.player.getBounds();
+      for (const obstacle of this.obstacles) {
+        if (
+          obstacle.kind === 'ai-answer'
+          && obstacle.disposition === 'grounded'
+          && !obstacle.dispositionRecorded
+        ) {
+          const obsBounds = obstacle.getBounds();
+          const xOverlap = playerBounds.x < obsBounds.x + obsBounds.width
+            && playerBounds.x + playerBounds.width > obsBounds.x;
+          if (xOverlap) {
+            obstacle.dispositionRecorded = true;
+            obstacle.falseReject = true;
+            obstacle.hit = true;
+            this.flashTimer = 0.35;
+            if (!this.hallucination.handleFalseReject(this, level, obstacle)) {
+              return;
+            }
+          }
+        }
+      }
+    }
+
     this.obstacles = this.obstacles.filter((obstacle) => {
       if (obstacle.isOffscreen()) {
         if (!obstacle.hit) {
           this.obstaclesCleared += 1;
+          if (isAIHallucinationTrack(track) && obstacle.kind === 'ai-answer' && !obstacle.dispositionRecorded) {
+            // Hallucination flown over (jump cleared) or grounded answer passed
+            // under -> correct disposition either way.
+            this.hallucination.recordCorrectDisposition();
+            obstacle.dispositionRecorded = true;
+          }
         }
         return false;
       }
@@ -220,8 +254,15 @@ export class Game {
         continue;
       }
 
+      // Grounded AI answers pass through the player -- shipping them is the
+      // correct disposition, so they should never trigger a physical collision.
+      if (obstacle.kind === 'ai-answer' && obstacle.disposition === 'grounded') {
+        continue;
+      }
+
       if (intersects(this.player.getBounds(), obstacle.getBounds()) && this.player.canTakeHit()) {
         obstacle.hit = true;
+        obstacle.dispositionRecorded = true;
         this.player.registerHit();
         this.flashTimer = 0.35;
 
@@ -252,7 +293,9 @@ export class Game {
         ? 'Control: tap to jump'
         : track.id === 'error-budget'
           ? 'Control: press Space to swing the hammer'
-          : 'Control: press Space to jump';
+          : isAIHallucinationTrack(track)
+            ? 'Control: press Space to flag a hallucination — let grounded answers pass'
+            : 'Control: press Space to jump';
     }
     const overlay = this.hud.getOverlay({
       state: this.state,
@@ -266,6 +309,7 @@ export class Game {
       experimentMode: this.availability.experimentMode,
       rollingWindowSeconds: this.availability.rollingWindowSeconds,
       leaderboard: this.leaderboard,
+      hallucination: this.hallucination,
     });
 
     this.renderer.render({
@@ -301,6 +345,7 @@ export class Game {
       availabilityWindowSeconds: this.availability.getRollingTimeWindowSeconds(level),
       breaches: this.breaches,
       elapsedSeconds: this.elapsedSeconds,
+      hallucination: this.hallucination,
     });
     this.trackMenuView.render({
       tracks: this.levelManager.getTrackMenuItems(),
@@ -344,6 +389,7 @@ export class Game {
         color: profile.color,
         label: profile.label,
         kind: profile.kind,
+        disposition: profile.disposition,
       }),
     );
   }
@@ -397,12 +443,15 @@ export class Game {
   }
 
   getTrackerForTrack(track) {
-    return isAvailabilityTrack(track) ? this.availability : this.defaultTracker;
+    if (isAvailabilityTrack(track)) return this.availability;
+    if (isAIHallucinationTrack(track)) return this.hallucination;
+    return this.defaultTracker;
   }
 
   resetTrackers() {
     this.availability.reset();
     this.defaultTracker.reset();
+    this.hallucination.reset();
   }
 
   onLevelComplete(level, track) {
