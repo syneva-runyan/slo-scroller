@@ -6,6 +6,9 @@ on:
 
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
     # The type of runner that the job will run on
@@ -44,4 +47,3 @@ jobs:
 
       - name: Deploy to gh-pages
         run: pnpm exec gh-pages -d dist --repo "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-
