@@ -2,11 +2,12 @@ import { Player } from './Player.js';
 import { Obstacle } from './Obstacle.js';
 import { LevelManager } from './LevelManager.js';
 import { levelTracks } from './levels.js';
-import { isAvailabilityTrack, isAIHallucinationTrack } from './trackUtils.js';
+import { isAvailabilityTrack, isAIHallucinationTrack, isResponseTimeTrack } from './trackUtils.js';
 import { updateElapsedSeconds } from './timer.js';
 import { AvailabilityTracker } from './AvailabilityTracker.js';
 import { GameTracker } from './GameTracker.js';
 import { HallucinationTracker } from './HallucinationTracker.js';
+import { ResponseTimeTracker } from './ResponseTimeTracker.js';
 import { getOrCreatePlayerId, getDisplayName } from './identity.js';
 import { submitScore, fetchRank, fetchTopScores, isLeaderboardEnabled } from '../services/leaderboard.js';
 import './Game.css';
@@ -61,9 +62,6 @@ export class Game {
           <div class="game-leaderboard-slot" hidden></div>
         </div>
       </div>
-      <footer class="game-footer">
-        <div class="game-pill">Boilerplate: Vite + canvas + mostly vanilla JS</div>
-      </footer>
     `;
 
     this.menuContainer = this.shell.querySelector('.game-menu');
@@ -96,10 +94,14 @@ export class Game {
     this.overlayView = new OverlayView(this.stage);
     this.trackMenuView = new TrackMenuView(this.menuContainer, {
       onSelectTrack: (trackId) => this.selectTrack(trackId),
-      onExperimentToggle: () => this.availability.toggleExperimentMode(),
+      onExperimentToggle: () => {
+        const t = this.getTrackerForTrack(this.levelManager.getCurrentTrack());
+        t.toggleExperimentMode();
+      },
       // TODO - eventually we may want to implement rolling time windows in
       // levels other than availability
       onRollingTimeWindowConfigChange: (value) => this.availability.setRollingTimeWindowSeconds(value),
+      onPercentileChange: (value) => this.responseTime.setTargetPercentile(value),
     });
     this.player = new Player({
       x: PLAYER_X,
@@ -110,6 +112,7 @@ export class Game {
     this.availability = new AvailabilityTracker();
     this.defaultTracker = new GameTracker();
     this.hallucination = new HallucinationTracker();
+    this.responseTime = new ResponseTimeTracker();
     this.animationFrameId = 0;
     this.lastTime = 0;
     this.state = 'menu';
@@ -189,7 +192,15 @@ export class Game {
 
     const level = this.levelManager.getCurrentLevel();
     const track = currentTrack;
-    this.distance += level.scrollSpeed * deltaSeconds;
+    const respTime = isResponseTimeTrack(track);
+
+    // Compute this frame's effective scroll speed. Only the response-time
+    // track ramps speed and applies latency / cache modifiers.
+    const effectiveSpeed = respTime
+      ? this.responseTime.tickSpeed(deltaSeconds, level)
+      : level.scrollSpeed;
+
+    this.distance += effectiveSpeed * deltaSeconds;
     this.spawnCooldown -= deltaSeconds;
     this.flashTimer = Math.max(0, this.flashTimer - deltaSeconds);
 
@@ -202,7 +213,7 @@ export class Game {
     }
 
     for (const obstacle of this.obstacles) {
-      obstacle.update(deltaSeconds, level.scrollSpeed);
+      obstacle.update(deltaSeconds, effectiveSpeed);
     }
 
     // On the AI track, a player who is airborne while overlapping a grounded
@@ -268,6 +279,19 @@ export class Game {
         continue;
       }
 
+      // Cache pickups grant a temporary speed boost on touch and never count
+      // as a breach. They pass through the player rather than blocking.
+      if (obstacle.kind === 'cache') {
+        if (intersects(this.player.getBounds(), obstacle.getBounds())) {
+          obstacle.hit = true;
+          obstacle.dispositionRecorded = true;
+          if (respTime) {
+            this.responseTime.applyCacheBoost(level);
+          }
+        }
+        continue;
+      }
+
       if (intersects(this.player.getBounds(), obstacle.getBounds()) && this.player.canTakeHit()) {
         obstacle.hit = true;
         obstacle.dispositionRecorded = true;
@@ -285,6 +309,17 @@ export class Game {
       return;
     }
 
+    if (respTime) {
+      const outcome = this.responseTime.checkCompletion(this, level);
+      if (outcome === 'complete') {
+        this.state = 'level-complete';
+        this.onLevelComplete(level, track);
+      } else if (outcome === 'failed') {
+        this.state = 'failed';
+      }
+      return;
+    }
+
     if (this.elapsedSeconds >= level.durationSeconds) {
       this.state = 'level-complete';
       this.onLevelComplete(level, track);
@@ -295,6 +330,27 @@ export class Game {
     const level = this.levelManager.getCurrentLevel();
     const track = this.levelManager.getCurrentTrack();
     const activeTracker = this.getTrackerForTrack(track);
+    const respTime = isResponseTimeTrack(track);
+    const liveSpeed = respTime
+      ? (this.responseTime.currentScrollSpeed || level.scrollSpeed)
+      : level.scrollSpeed;
+    const latencyActive = respTime ? this.responseTime.latencyActive : false;
+    const cacheBoostActive = respTime ? this.responseTime.cacheBoostActive : false;
+    const effectiveSpeed = respTime
+      ? (this.responseTime.getEffectiveScrollSpeed() || liveSpeed)
+      : liveSpeed;
+    const trackerExperimentMode = activeTracker?.experimentMode ?? false;
+    const measuredPercentileMs = respTime
+      ? this.responseTime.getPercentile(this.responseTime.targetPercentile)
+      : null;
+    const targetPercentile = respTime ? this.responseTime.targetPercentile : null;
+    const latencySamples = respTime ? this.responseTime.samples : null;
+    const progressRatio = respTime && level.goalDistance
+      ? Math.min(1, this.distance / level.goalDistance)
+      : Math.min(1, this.elapsedSeconds / level.durationSeconds);
+    const distanceRemaining = respTime && level.goalDistance
+      ? Math.max(0, level.goalDistance - this.distance)
+      : Math.max(0, level.durationSeconds - this.elapsedSeconds) * level.scrollSpeed;
     if (this.controlsPill) {
       const isTouchDevice = navigator.maxTouchPoints > 0;
       this.controlsPill.textContent = isTouchDevice
@@ -323,7 +379,8 @@ export class Game {
       state: this.state,
       level,
       timeRemaining: Math.max(0, level.durationSeconds - this.elapsedSeconds),
-      progressRatio: Math.min(1, this.elapsedSeconds / level.durationSeconds),
+      distanceRemaining,
+      progressRatio,
       progressHitMarkers: activeTracker.progressHitMarkers,
       levelIndex: this.levelManager.currentIndex + 1,
       levelCount: this.levelManager.levelCount,
@@ -346,7 +403,7 @@ export class Game {
       level,
       track,
       state: this.state,
-      progressRatio: Math.min(1, this.elapsedSeconds / level.durationSeconds),
+      progressRatio,
       progressHitMarkers: activeTracker.progressHitMarkers,
       rollingAvailability: this.availability.getRollingAvailability(this.elapsedSeconds, level),
       availabilityTarget: this.availability.getTarget(level),
@@ -354,12 +411,23 @@ export class Game {
       breaches: this.breaches,
       elapsedSeconds: this.elapsedSeconds,
       hallucination: this.hallucination,
+      currentScrollSpeed: liveSpeed,
+      effectiveScrollSpeed: effectiveSpeed,
+      latencyActive,
+      cacheBoostActive,
+      distance: this.distance,
+      experimentMode: trackerExperimentMode,
+      targetPercentile,
+      measuredPercentileMs,
+      latencySamples,
     });
     this.trackMenuView.render({
       tracks: this.levelManager.getTrackMenuItems(),
-      showExperimentToggle: isAvailabilityTrack(track),
-      experimentMode: this.availability.experimentMode,
+      showExperimentToggle: isAvailabilityTrack(track) || isResponseTimeTrack(track),
+      experimentMode: trackerExperimentMode,
+      activeTrackId: track.id,
       rollingWindowSeconds: this.availability.rollingWindowSeconds,
+      targetPercentile: this.responseTime.targetPercentile,
       activeLevelId: level.id,
     });
   }
@@ -410,6 +478,7 @@ export class Game {
     this.hammerStrike = null;
     this.leaderboard = null;
     this.resetTrackers();
+    this.responseTime.primeForLevel(this.levelManager.getCurrentLevel());
     this.player.reset();
   }
 
@@ -475,12 +544,14 @@ export class Game {
     this.powerTripTimer = 0;
     this.hammerStrike = null;
     this.resetTrackers();
+    this.responseTime.primeForLevel(this.levelManager.getCurrentLevel());
     this.player.reset();
   }
 
   getTrackerForTrack(track) {
     if (isAvailabilityTrack(track)) return this.availability;
     if (isAIHallucinationTrack(track)) return this.hallucination;
+    if (isResponseTimeTrack(track)) return this.responseTime;
     return this.defaultTracker;
   }
 
@@ -488,10 +559,16 @@ export class Game {
     this.availability.reset();
     this.defaultTracker.reset();
     this.hallucination.reset();
+    this.responseTime.reset();
   }
 
   onLevelComplete(level, track) {
     if (!isLeaderboardEnabled()) {
+      return;
+    }
+    // Experiment-mode runs are lab toys: don't pollute the leaderboard.
+    const tracker = this.getTrackerForTrack(track);
+    if (tracker?.experimentMode) {
       return;
     }
     const playerId = getOrCreatePlayerId();
@@ -500,6 +577,9 @@ export class Game {
       : null;
     const breaches = this.breaches;
     const obstaclesCleared = this.obstaclesCleared;
+    const elapsedSeconds = isResponseTimeTrack(track)
+      ? Number(this.elapsedSeconds.toFixed(2))
+      : null;
 
     promptDisplayName(this.stage).then((displayName) => {
       return submitScore({
@@ -510,8 +590,9 @@ export class Game {
         breaches,
         rollingAvailability,
         obstaclesCleared,
+        elapsedSeconds,
       }).then(() => Promise.all([
-        fetchRank({ trackId: track.id, levelId: level.id, breaches, obstaclesCleared }),
+        fetchRank({ trackId: track.id, levelId: level.id, breaches, obstaclesCleared, elapsedSeconds }),
         fetchTopScores({ trackId: track.id, levelId: level.id, limit: 5 }),
       ]));
     }).then(([rank, scores]) => {

@@ -1,5 +1,6 @@
 import './GameHUDView.css';
-import { isAvailabilityTrack, isAIHallucinationTrack } from '../../game/trackUtils.js';
+import { isAvailabilityTrack, isAIHallucinationTrack, isResponseTimeTrack } from '../../game/trackUtils.js';
+import { LatencyDistributionView } from './LatencyDistributionView.js';
 
 function el(tag, className) {
   const node = document.createElement(tag);
@@ -39,6 +40,12 @@ export class GameHUDView {
 
     top.append(this.panel, this.rightSection);
     this.root.append(top);
+
+    // Floating latency telemetry cloud (response-time levels only).
+    this.latencyCloud = new LatencyDistributionView();
+    this.latencyCloud.root.hidden = true;
+    this.root.append(this.latencyCloud.root);
+
     container.append(this.root);
 
     this._lastMarkerCount = -1;
@@ -47,18 +54,21 @@ export class GameHUDView {
 
   render({ level, track, state, progressRatio, progressHitMarkers,
            rollingAvailability, availabilityTarget, availabilityWindowSeconds,
-           breaches, elapsedSeconds, hallucination }) {
+           breaches, elapsedSeconds, hallucination,
+           currentScrollSpeed, effectiveScrollSpeed, latencyActive, cacheBoostActive, distance,
+           experimentMode, targetPercentile, measuredPercentileMs, latencySamples }) {
     this.root.hidden = state === 'menu';
     if (state === 'menu') return;
 
     const avail = isAvailabilityTrack(track);
     const ai = isAIHallucinationTrack(track);
+    const respTime = isResponseTimeTrack(track);
     const patch = (text) => patchWindow(text, level.availabilityWindowSeconds, availabilityWindowSeconds);
 
     // Left panel
     this.levelTitleEl.textContent = level.title;
     this.conceptEl.textContent = patch(level.concept);
-    this.timeEl.textContent = `${elapsedSeconds.toFixed(1)}s / ${level.durationSeconds}s`;
+    this.timeEl.textContent = `${elapsedSeconds.toFixed(1)}s${respTime ? '' : ` / ${level.durationSeconds}s`}`;
 
     if (avail) {
       const gap = rollingAvailability - availabilityTarget;
@@ -75,6 +85,36 @@ export class GameHUDView {
         : breaches > 0
           ? 'warning'
           : 'ok';
+    } else if (respTime && level.baseLatencyMs) {
+      const speedForLatency = effectiveScrollSpeed || currentScrollSpeed || level.scrollSpeed;
+      const latencyMs = Math.round(level.baseLatencyMs * level.scrollSpeed / speedForLatency);
+      const boostTag = cacheBoostActive ? ' • ⚡ CACHE' : '';
+      if (experimentMode) {
+        const pLabel = `p${Math.round((targetPercentile ?? 0.95) * 100)}`;
+        const measuredTxt = measuredPercentileMs == null
+          ? '—'
+          : `${Math.round(measuredPercentileMs)} ms`;
+        this.statEl.textContent =
+          `Latency: ${latencyMs} ms • ${pLabel}: ${measuredTxt} / ${level.baseLatencyMs} ms SLO${boostTag}`;
+        const ratio = measuredPercentileMs == null ? null : measuredPercentileMs / level.baseLatencyMs;
+        this.statEl.dataset.status = ratio == null
+          ? 'warning'
+          : ratio <= 1
+            ? 'ok'
+            : ratio <= 1.25
+              ? 'warning'
+              : 'danger';
+      } else {
+        this.statEl.textContent =
+          `Latency: ${latencyMs} ms • ✘ ${breaches}/${level.allowedBreaches}${boostTag}`;
+        this.statEl.dataset.status = latencyActive
+          ? 'danger'
+          : cacheBoostActive
+            ? 'ok'
+            : latencyMs <= level.baseLatencyMs
+              ? 'ok'
+              : 'warning';
+      }
     } else {
       this.statEl.textContent = `Breaches: ${breaches} / ${level.allowedBreaches}`;
       this.statEl.removeAttribute('data-status');
@@ -101,6 +141,24 @@ export class GameHUDView {
 
     // Right labels
     this.targetLabelEl.textContent = patch(level.targetLabel);
-    this.metaEl.textContent = avail ? `Rolling ${availabilityWindowSeconds}s window` : '';
+    if (avail) {
+      this.metaEl.textContent = `Rolling ${availabilityWindowSeconds}s window`;
+    } else if (respTime && level.goalDistance) {
+      this.metaEl.textContent = `Distance: ${Math.round(distance ?? 0)} / ${level.goalDistance}`;
+    } else {
+      this.metaEl.textContent = '';
+    }
+
+    // Floating latency cloud — RT levels only.
+    if (respTime && latencySamples) {
+      this.latencyCloud.update({
+        samples: latencySamples,
+        baselineMs: level.baseLatencyMs,
+        targetPercentile: targetPercentile ?? 0.95,
+        measuredMs: measuredPercentileMs,
+      });
+    } else {
+      this.latencyCloud.hide();
+    }
   }
 }

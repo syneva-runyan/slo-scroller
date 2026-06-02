@@ -4,6 +4,7 @@ const FLOOR_COLOR = '#d7dee8';
 const FLOOR_SHADOW = '#b6c0cb';
 
 import { DeployBugButton } from './collisionItems/DeployBugButton.js';
+import { Cache } from './collisionItems/Cache.js';
 import { AvailabilityWorkstation } from './AvailabilityWorkstation.js';
 import { isAvailabilityTrack, isAIHallucinationTrack } from '../game/trackUtils.js';
 
@@ -15,6 +16,7 @@ export class Renderer {
     this.groundY = groundY;
     this.spriteScale = spriteScale;
     this.deployBugButton = new DeployBugButton();
+    this.cache = new Cache(spriteScale);
     this.availabilityWorkstation = new AvailabilityWorkstation({ groundY });
   }
 
@@ -24,7 +26,7 @@ export class Renderer {
     this.drawSky(scene.flashTimer);
     this.drawBackground(scene.distance, scene.track, scene.powerTripTimer);
     this.drawGround(scene.distance);
-    this.drawFinishMarker(scene.timeRemaining, scene.level.scrollSpeed);
+    this.drawFinishMarker(scene.distanceRemaining ?? scene.timeRemaining * scene.level.scrollSpeed);
     this.drawObstacles(scene.obstacles, scene.track?.id === 'error-budget', scene.elapsedSeconds);
     this.drawPlayer(
       scene.player,
@@ -129,8 +131,7 @@ export class Renderer {
     ctx.fillRect(0, this.groundY + 20, this.width, 8);
   }
 
-  drawFinishMarker(timeRemaining, scrollSpeed) {
-    const distanceRemaining = timeRemaining * scrollSpeed;
+  drawFinishMarker(distanceRemaining) {
     if (distanceRemaining <= 0 || distanceRemaining > this.width * 1.5) {
       return;
     }
@@ -162,6 +163,8 @@ export class Renderer {
         this.drawCart(bounds, obstacle.color, obstacle.hit);
       } else if (obstacle.kind === 'server') {
         this.drawServer(bounds, obstacle.color, obstacle.hit);
+      } else if (obstacle.kind === 'cache') {
+        this.cache.draw(ctx, bounds, obstacle.color, obstacle.hit, elapsedSeconds);
       } else {
         ctx.fillStyle = obstacle.hit ? 'rgba(255,255,255,0.6)' : obstacle.color;
         ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);

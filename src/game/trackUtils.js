@@ -6,6 +6,10 @@ export function isAIHallucinationTrack(track) {
   return track?.id === 'ai-hallucination';
 }
 
+export function isResponseTimeTrack(track) {
+  return track?.id === 'response-time';
+}
+
 export function formatAvailabilityPercent(value) {
   const percent = value * 100;
   return Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(1);
