@@ -208,11 +208,11 @@
 
 @media (max-width: 720px) {
   .latency-cloud {
-    top: auto;
-    bottom: 8%;
+    top: 46%;
+    bottom: auto;
     right: 50%;
     transform: translateX(50%);
-    width: clamp(180px, 60vw, 260px);
+    width: clamp(160px, 52vw, 240px);
   }
   @keyframes latency-cloud-drift {
     from { transform: translateX(50%) translateY(0); }
