@@ -161,7 +161,7 @@ export class LatencyDistributionView {
       this.svg.append(pLbl);
     }
 
-    // X-axis ticks (0, baseline, xMax).
+    // X-axis ticks (0, xMax).
     const axis = (ms, label) => {
       const x = xPx(ms);
       const tick = el('line', {
