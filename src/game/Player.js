@@ -14,6 +14,8 @@ export class Player {
     this.groundY = groundY;
     this.width = 70 * spriteScale;
     this.height = 96 * spriteScale;
+    // On mobile (spriteScale > 1) allow unlimited mid-air jumps; desktop keeps double jump.
+    this.maxJumps = spriteScale > 1 ? Infinity : 2;
     this.reset();
   }
 
@@ -21,6 +23,7 @@ export class Player {
     this.y = this.groundY - this.height;
     this.velocityY = 0;
     this.onGround = true;
+    this.jumpsUsed = 0;
     this.hitRecovery = 0;
   }
 
@@ -33,16 +36,18 @@ export class Player {
       this.y = this.groundY - this.height;
       this.velocityY = 0;
       this.onGround = true;
+      this.jumpsUsed = 0;
     }
   }
 
   jump() {
-    if (!this.onGround) {
+    if (this.jumpsUsed >= this.maxJumps) {
       return;
     }
 
     this.velocityY = this.jumpVelocity;
     this.onGround = false;
+    this.jumpsUsed += 1;
   }
 
   canTakeHit() {

@@ -1,6 +1,5 @@
 import { createElement } from '../shared/createElement.js';
 import { createBriefingSection } from './BriefingSection.js';
-import { LeaderboardView } from '../Leaderboard/LeaderboardView.js';
 
 function createOverlayBodyNodes(body) {
   return body
@@ -36,16 +35,6 @@ export function createOverlayCard(overlay) {
   );
 
   card.append(...createOverlayBodyNodes(overlay.body));
-
-  if (overlay.leaderboard !== undefined) {
-    const lb = new LeaderboardView();
-    if (overlay.leaderboard === 'loading') {
-      lb.renderLoading();
-    } else {
-      lb.render(overlay.leaderboard.scores, overlay.leaderboard.rank);
-    }
-    card.append(lb.root);
-  }
 
   card.append(createElement('p', 'game-overlay-cta', overlay.cta));
 
