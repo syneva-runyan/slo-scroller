@@ -1,3 +1,5 @@
+This repo started as a vibe-coded prototype and never recovered.
+
 ## Local development
 
 ```
