@@ -132,6 +132,10 @@ export class ResponseTimeTracker extends GameTracker {
     return this._samples.length;
   }
 
+  get samples() {
+    return this._samples;
+  }
+
   /**
    * Linear-interpolation percentile (matches numpy's default behaviour).
    * Returns null until enough samples have been collected.

@@ -1,5 +1,6 @@
 import './GameHUDView.css';
 import { isAvailabilityTrack, isAIHallucinationTrack, isResponseTimeTrack } from '../../game/trackUtils.js';
+import { LatencyDistributionView } from './LatencyDistributionView.js';
 
 function el(tag, className) {
   const node = document.createElement(tag);
@@ -39,6 +40,12 @@ export class GameHUDView {
 
     top.append(this.panel, this.rightSection);
     this.root.append(top);
+
+    // Floating latency telemetry cloud (response-time levels only).
+    this.latencyCloud = new LatencyDistributionView();
+    this.latencyCloud.root.hidden = true;
+    this.root.append(this.latencyCloud.root);
+
     container.append(this.root);
 
     this._lastMarkerCount = -1;
@@ -49,7 +56,7 @@ export class GameHUDView {
            rollingAvailability, availabilityTarget, availabilityWindowSeconds,
            breaches, elapsedSeconds, hallucination,
            currentScrollSpeed, effectiveScrollSpeed, latencyActive, cacheBoostActive, distance,
-           experimentMode, targetPercentile, measuredPercentileMs }) {
+           experimentMode, targetPercentile, measuredPercentileMs, latencySamples }) {
     this.root.hidden = state === 'menu';
     if (state === 'menu') return;
 
@@ -140,6 +147,18 @@ export class GameHUDView {
       this.metaEl.textContent = `Distance: ${Math.round(distance ?? 0)} / ${level.goalDistance}`;
     } else {
       this.metaEl.textContent = '';
+    }
+
+    // Floating latency cloud — RT levels only.
+    if (respTime && latencySamples) {
+      this.latencyCloud.update({
+        samples: latencySamples,
+        baselineMs: level.baseLatencyMs,
+        targetPercentile: targetPercentile ?? 0.95,
+        measuredMs: measuredPercentileMs,
+      });
+    } else {
+      this.latencyCloud.hide();
     }
   }
 }

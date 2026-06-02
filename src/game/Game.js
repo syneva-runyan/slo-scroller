@@ -344,6 +344,7 @@ export class Game {
       ? this.responseTime.getPercentile(this.responseTime.targetPercentile)
       : null;
     const targetPercentile = respTime ? this.responseTime.targetPercentile : null;
+    const latencySamples = respTime ? this.responseTime.samples : null;
     const progressRatio = respTime && level.goalDistance
       ? Math.min(1, this.distance / level.goalDistance)
       : Math.min(1, this.elapsedSeconds / level.durationSeconds);
@@ -418,6 +419,7 @@ export class Game {
       experimentMode: trackerExperimentMode,
       targetPercentile,
       measuredPercentileMs,
+      latencySamples,
     });
     this.trackMenuView.render({
       tracks: this.levelManager.getTrackMenuItems(),
