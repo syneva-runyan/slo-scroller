@@ -94,10 +94,14 @@ export class Game {
     this.overlayView = new OverlayView(this.stage);
     this.trackMenuView = new TrackMenuView(this.menuContainer, {
       onSelectTrack: (trackId) => this.selectTrack(trackId),
-      onExperimentToggle: () => this.availability.toggleExperimentMode(),
+      onExperimentToggle: () => {
+        const t = this.getTrackerForTrack(this.levelManager.getCurrentTrack());
+        t.toggleExperimentMode();
+      },
       // TODO - eventually we may want to implement rolling time windows in
       // levels other than availability
       onRollingTimeWindowConfigChange: (value) => this.availability.setRollingTimeWindowSeconds(value),
+      onPercentileChange: (value) => this.responseTime.setTargetPercentile(value),
     });
     this.player = new Player({
       x: PLAYER_X,
@@ -335,6 +339,11 @@ export class Game {
     const effectiveSpeed = respTime
       ? (this.responseTime.getEffectiveScrollSpeed() || liveSpeed)
       : liveSpeed;
+    const trackerExperimentMode = activeTracker?.experimentMode ?? false;
+    const measuredPercentileMs = respTime
+      ? this.responseTime.getPercentile(this.responseTime.targetPercentile)
+      : null;
+    const targetPercentile = respTime ? this.responseTime.targetPercentile : null;
     const progressRatio = respTime && level.goalDistance
       ? Math.min(1, this.distance / level.goalDistance)
       : Math.min(1, this.elapsedSeconds / level.durationSeconds);
@@ -406,12 +415,17 @@ export class Game {
       latencyActive,
       cacheBoostActive,
       distance: this.distance,
+      experimentMode: trackerExperimentMode,
+      targetPercentile,
+      measuredPercentileMs,
     });
     this.trackMenuView.render({
       tracks: this.levelManager.getTrackMenuItems(),
-      showExperimentToggle: isAvailabilityTrack(track),
-      experimentMode: this.availability.experimentMode,
+      showExperimentToggle: isAvailabilityTrack(track) || isResponseTimeTrack(track),
+      experimentMode: trackerExperimentMode,
+      activeTrackId: track.id,
       rollingWindowSeconds: this.availability.rollingWindowSeconds,
+      targetPercentile: this.responseTime.targetPercentile,
       activeLevelId: level.id,
     });
   }
@@ -548,6 +562,11 @@ export class Game {
 
   onLevelComplete(level, track) {
     if (!isLeaderboardEnabled()) {
+      return;
+    }
+    // Experiment-mode runs are lab toys: don't pollute the leaderboard.
+    const tracker = this.getTrackerForTrack(track);
+    if (tracker?.experimentMode) {
       return;
     }
     const playerId = getOrCreatePlayerId();

@@ -48,7 +48,8 @@ export class GameHUDView {
   render({ level, track, state, progressRatio, progressHitMarkers,
            rollingAvailability, availabilityTarget, availabilityWindowSeconds,
            breaches, elapsedSeconds, hallucination,
-           currentScrollSpeed, effectiveScrollSpeed, latencyActive, cacheBoostActive, distance }) {
+           currentScrollSpeed, effectiveScrollSpeed, latencyActive, cacheBoostActive, distance,
+           experimentMode, targetPercentile, measuredPercentileMs }) {
     this.root.hidden = state === 'menu';
     if (state === 'menu') return;
 
@@ -81,15 +82,32 @@ export class GameHUDView {
       const speedForLatency = effectiveScrollSpeed || currentScrollSpeed || level.scrollSpeed;
       const latencyMs = Math.round(level.baseLatencyMs * level.scrollSpeed / speedForLatency);
       const boostTag = cacheBoostActive ? ' • ⚡ CACHE' : '';
-      this.statEl.textContent =
-        `Latency: ${latencyMs} ms • ✘ ${breaches}/${level.allowedBreaches}${boostTag}`;
-      this.statEl.dataset.status = latencyActive
-        ? 'danger'
-        : cacheBoostActive
-          ? 'ok'
-          : latencyMs <= level.baseLatencyMs
+      if (experimentMode) {
+        const pLabel = `p${Math.round((targetPercentile ?? 0.95) * 100)}`;
+        const measuredTxt = measuredPercentileMs == null
+          ? '—'
+          : `${Math.round(measuredPercentileMs)} ms`;
+        this.statEl.textContent =
+          `Latency: ${latencyMs} ms • ${pLabel}: ${measuredTxt} / ${level.baseLatencyMs} ms SLO${boostTag}`;
+        const ratio = measuredPercentileMs == null ? null : measuredPercentileMs / level.baseLatencyMs;
+        this.statEl.dataset.status = ratio == null
+          ? 'warning'
+          : ratio <= 1
             ? 'ok'
-            : 'warning';
+            : ratio <= 1.25
+              ? 'warning'
+              : 'danger';
+      } else {
+        this.statEl.textContent =
+          `Latency: ${latencyMs} ms • ✘ ${breaches}/${level.allowedBreaches}${boostTag}`;
+        this.statEl.dataset.status = latencyActive
+          ? 'danger'
+          : cacheBoostActive
+            ? 'ok'
+            : latencyMs <= level.baseLatencyMs
+              ? 'ok'
+              : 'warning';
+      }
     } else {
       this.statEl.textContent = `Breaches: ${breaches} / ${level.allowedBreaches}`;
       this.statEl.removeAttribute('data-status');
