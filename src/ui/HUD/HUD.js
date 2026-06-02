@@ -12,7 +12,7 @@ export class HUD {
     this.levelBriefing = new LevelBriefing();
   }
 
-  getOverlay({ state, level, track, breaches, rollingAvailability, availabilityTarget, levelIndex, levelCount, experimentMode, rollingWindowSeconds, leaderboard, hallucination }) {
+  getOverlay({ state, level, track, breaches, rollingAvailability, availabilityTarget, levelIndex, levelCount, experimentMode, rollingWindowSeconds, hallucination }) {
     if (state === 'menu') {
       return buildMenuOverlay(track, levelCount);
     }
@@ -25,9 +25,7 @@ export class HUD {
     }
 
     if (state === 'level-complete') {
-      const overlay = buildLevelCompleteOverlay(level, track, levelIndex, levelCount, breaches, rollingAvailability, availabilityTarget, hallucination);
-      overlay.leaderboard = leaderboard ?? 'loading';
-      return overlay;
+      return buildLevelCompleteOverlay(level, track, levelIndex, levelCount, breaches, rollingAvailability, availabilityTarget, hallucination);
     }
 
     if (state === 'failed') {

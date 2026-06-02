@@ -15,6 +15,24 @@
   min-width: 0;
 }
 
+.game-stage-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.game-leaderboard-slot {
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--surface-pill);
+  border: var(--border-pill);
+}
+
+.game-leaderboard-slot[hidden] {
+  display: none;
+}
+
 .game-header {
   display: flex;
   justify-content: space-between;
@@ -72,13 +90,17 @@
     grid-template-columns: 1fr;
   }
 
-  .game-stage {
+  .game-stage-area {
     order: -1;
+    gap: 8px;
+  }
+
+  .game-stage {
     border-radius: 18px;
-    /* Stage is at least 50svh tall, but never less than the canvas's natural
+    /* Stage is at least 70svh tall, but never less than the canvas's natural
        16:9 height (56.25vw). The canvas keeps its aspect ratio and sits at the
        bottom; the space above is filled with the sky colour so it blends in. */
-    height: max(85svh, 56.25vw);
+    height: max(70svh, 56.25vw);
     background: #0f1825;
     display: flex;
     flex-direction: column;
@@ -88,12 +110,12 @@
   /* Canvas keeps its natural 16/9 ratio — no overrides needed.
      Flex alignment on the stage pins it to the bottom. */
 
-  .game-footer {
-    flex-direction: column;
-    gap: 8px;
+  .game-controls-pill {
+    text-align: center;
+    align-self: stretch;
   }
 
-  .game-footer .game-pill:last-child {
+  .game-footer {
     display: none;
   }
 }
