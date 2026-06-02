@@ -508,9 +508,10 @@ export class Renderer {
       let cursor = labelX - totalW / 2;
       for (let i = 0; i < text.length; i += 1) {
         const ch = text[i];
-        const j = Math.sin(elapsedSeconds * 18 + i * 1.3) * 1.3;
-        ctx.fillText(ch, cursor + ctx.measureText(ch).width / 2, labelY + j);
-        cursor += ctx.measureText(ch).width;
+        const chWidth = ctx.measureText(ch).width;
+        const j = Math.sin(elapsedSeconds * 18 + i * 1.3) * 1.3 * s;
+        ctx.fillText(ch, cursor + chWidth / 2, labelY + j);
+        cursor += chWidth;
       }
     }
     ctx.textAlign = 'start';
