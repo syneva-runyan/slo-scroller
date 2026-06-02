@@ -484,13 +484,13 @@ export class Renderer {
     const badgeColor = grounded ? '#022c22' : '#3b0764';
     const badgeBg = grounded ? '#5eead4' : '#fbcfe8';
     ctx.font = `bold ${Math.round(11 * s)}px Trebuchet MS`;
-    const badgeW = ctx.measureText(badgeText).width + 14;
+    const badgeW = ctx.measureText(badgeText).width + 14 * s;
     const badgeH = 18 * s;
     ctx.fillStyle = badgeBg;
-    ctx.fillRect(x + 8, y + 8, badgeW, badgeH);
+    ctx.fillRect(x + 8 * s, y + 8 * s, badgeW, badgeH);
     ctx.fillStyle = badgeColor;
     ctx.textBaseline = 'middle';
-    ctx.fillText(badgeText, x + 15, y + 8 + badgeH / 2);
+    ctx.fillText(badgeText, x + 15 * s, y + 8 * s + badgeH / 2);
     ctx.textBaseline = 'alphabetic';
 
     // Answer label inside bubble (slightly jittered glyphs for hallucinations).
