@@ -7,6 +7,7 @@ import { updateElapsedSeconds } from './timer.js';
 import { AvailabilityTracker } from './AvailabilityTracker.js';
 import { GameTracker } from './GameTracker.js';
 import { HallucinationTracker } from './HallucinationTracker.js';
+import { ResponseTimeTracker } from './ResponseTimeTracker.js';
 import { getOrCreatePlayerId, getDisplayName } from './identity.js';
 import { submitScore, fetchRank, fetchTopScores, isLeaderboardEnabled } from '../services/leaderboard.js';
 import './Game.css';
@@ -107,6 +108,7 @@ export class Game {
     this.availability = new AvailabilityTracker();
     this.defaultTracker = new GameTracker();
     this.hallucination = new HallucinationTracker();
+    this.responseTime = new ResponseTimeTracker();
     this.animationFrameId = 0;
     this.lastTime = 0;
     this.state = 'menu';
@@ -121,11 +123,6 @@ export class Game {
     this.powerTripTimer = 0;
     this.hammerStrike = null;
     this.leaderboard = null;
-    this.currentScrollSpeed = 0;
-    this.latencyPenaltyRemaining = 0;
-    this.activePenaltyFactor = 1;
-    this.cacheBoostRemaining = 0;
-    this.cacheBoostFactor = 1;
     this.resetTrackers();
   }
 
@@ -191,27 +188,13 @@ export class Game {
 
     const level = this.levelManager.getCurrentLevel();
     const track = currentTrack;
+    const respTime = isResponseTimeTrack(track);
 
-    // Ramp scroll speed for response-time levels; other tracks stay constant.
-    if (isResponseTimeTrack(track) && level.maxScrollSpeed != null && level.speedRampPerSecond) {
-      this.currentScrollSpeed = Math.min(
-        level.maxScrollSpeed,
-        this.currentScrollSpeed + level.speedRampPerSecond * deltaSeconds,
-      );
-    } else {
-      this.currentScrollSpeed = level.scrollSpeed;
-    }
-
-    // Latency penalty: temporary slowdown after a breach (response-time only).
-    this.latencyPenaltyRemaining = Math.max(0, this.latencyPenaltyRemaining - deltaSeconds);
-    const penaltyActive = this.latencyPenaltyRemaining > 0;
-    // Cache boost: temporary speed-up after collecting a cache (response-time only).
-    this.cacheBoostRemaining = Math.max(0, this.cacheBoostRemaining - deltaSeconds);
-    const boostActive = this.cacheBoostRemaining > 0;
-    const boostFactor = boostActive ? this.cacheBoostFactor : 1;
-    const effectiveSpeed = penaltyActive
-      ? this.currentScrollSpeed * this.activePenaltyFactor * boostFactor
-      : this.currentScrollSpeed * boostFactor;
+    // Compute this frame's effective scroll speed. Only the response-time
+    // track ramps speed and applies latency / cache modifiers.
+    const effectiveSpeed = respTime
+      ? this.responseTime.tickSpeed(deltaSeconds, level)
+      : level.scrollSpeed;
 
     this.distance += effectiveSpeed * deltaSeconds;
     this.spawnCooldown -= deltaSeconds;
@@ -298,11 +281,8 @@ export class Game {
         if (intersects(this.player.getBounds(), obstacle.getBounds())) {
           obstacle.hit = true;
           obstacle.dispositionRecorded = true;
-          if (isResponseTimeTrack(track) && level.cacheBoost) {
-            this.cacheBoostRemaining = level.cacheBoost.durationSeconds;
-            this.cacheBoostFactor = level.cacheBoost.boostFactor;
-            // Picking up a cache shakes off any active latency penalty.
-            this.latencyPenaltyRemaining = 0;
+          if (respTime) {
+            this.responseTime.applyCacheBoost(level);
           }
         }
         continue;
@@ -325,16 +305,13 @@ export class Game {
       return;
     }
 
-    if (isResponseTimeTrack(track) && level.goalDistance != null) {
-      if (this.distance >= level.goalDistance) {
+    if (respTime) {
+      const outcome = this.responseTime.checkCompletion(this, level);
+      if (outcome === 'complete') {
         this.state = 'level-complete';
         this.onLevelComplete(level, track);
-        return;
-      }
-      if (this.elapsedSeconds >= level.durationSeconds) {
-        // Ran out of time before covering the distance — too slow.
+      } else if (outcome === 'failed') {
         this.state = 'failed';
-        return;
       }
       return;
     }
@@ -350,11 +327,14 @@ export class Game {
     const track = this.levelManager.getCurrentTrack();
     const activeTracker = this.getTrackerForTrack(track);
     const respTime = isResponseTimeTrack(track);
-    const liveSpeed = this.currentScrollSpeed || level.scrollSpeed;
-    const latencyActive = this.latencyPenaltyRemaining > 0;
-    const cacheBoostActive = this.cacheBoostRemaining > 0;
-    const boostMultiplier = cacheBoostActive ? this.cacheBoostFactor : 1;
-    const effectiveSpeed = (latencyActive ? liveSpeed * this.activePenaltyFactor : liveSpeed) * boostMultiplier;
+    const liveSpeed = respTime
+      ? (this.responseTime.currentScrollSpeed || level.scrollSpeed)
+      : level.scrollSpeed;
+    const latencyActive = respTime ? this.responseTime.latencyActive : false;
+    const cacheBoostActive = respTime ? this.responseTime.cacheBoostActive : false;
+    const effectiveSpeed = respTime
+      ? (this.responseTime.getEffectiveScrollSpeed() || liveSpeed)
+      : liveSpeed;
     const progressRatio = respTime && level.goalDistance
       ? Math.min(1, this.distance / level.goalDistance)
       : Math.min(1, this.elapsedSeconds / level.durationSeconds);
@@ -481,12 +461,8 @@ export class Game {
     this.powerTripTimer = 0;
     this.hammerStrike = null;
     this.leaderboard = null;
-    this.currentScrollSpeed = this.levelManager.getCurrentLevel().scrollSpeed;
-    this.latencyPenaltyRemaining = 0;
-    this.activePenaltyFactor = 1;
-    this.cacheBoostRemaining = 0;
-    this.cacheBoostFactor = 1;
     this.resetTrackers();
+    this.responseTime.primeForLevel(this.levelManager.getCurrentLevel());
     this.player.reset();
   }
 
@@ -551,18 +527,15 @@ export class Game {
     this.elapsedSeconds = 0;
     this.powerTripTimer = 0;
     this.hammerStrike = null;
-    this.currentScrollSpeed = this.levelManager.getCurrentLevel().scrollSpeed;
-    this.latencyPenaltyRemaining = 0;
-    this.activePenaltyFactor = 1;
-    this.cacheBoostRemaining = 0;
-    this.cacheBoostFactor = 1;
     this.resetTrackers();
+    this.responseTime.primeForLevel(this.levelManager.getCurrentLevel());
     this.player.reset();
   }
 
   getTrackerForTrack(track) {
     if (isAvailabilityTrack(track)) return this.availability;
     if (isAIHallucinationTrack(track)) return this.hallucination;
+    if (isResponseTimeTrack(track)) return this.responseTime;
     return this.defaultTracker;
   }
 
@@ -570,6 +543,7 @@ export class Game {
     this.availability.reset();
     this.defaultTracker.reset();
     this.hallucination.reset();
+    this.responseTime.reset();
   }
 
   onLevelComplete(level, track) {
@@ -613,13 +587,6 @@ export class Game {
 
   handleObstacleCollision(track, level, obstacle) {
     const tracker = this.getTrackerForTrack(track);
-    const result = tracker.handleObstacleCollision(this, track, level, obstacle);
-    // Response-time: each breach also imposes a temporary latency penalty
-    // (scroll slowdown) on top of the breach count.
-    if (isResponseTimeTrack(track) && level.latencyPenalty) {
-      this.latencyPenaltyRemaining = level.latencyPenalty.durationSeconds;
-      this.activePenaltyFactor = level.latencyPenalty.slowFactor;
-    }
-    return result;
+    return tracker.handleObstacleCollision(this, track, level, obstacle);
   }
 }
