@@ -5,7 +5,10 @@ const FLOOR_SHADOW = '#b6c0cb';
 
 import { DeployBugButton } from './collisionItems/DeployBugButton.js';
 import { Cache } from './collisionItems/Cache.js';
+import { ScrollHitch } from './collisionItems/ScrollHitch.js';
+import { StickyBug } from './collisionItems/StickyBug.js';
 import { AvailabilityWorkstation } from './AvailabilityWorkstation.js';
+import { Hammer } from './Hammer.js';
 import { isAvailabilityTrack, isAIHallucinationTrack } from '../game/trackUtils.js';
 
 export class Renderer {
@@ -17,7 +20,10 @@ export class Renderer {
     this.spriteScale = spriteScale;
     this.deployBugButton = new DeployBugButton();
     this.cache = new Cache(spriteScale);
+    this.scrollHitch = new ScrollHitch(spriteScale);
+    this.stickyBug = new StickyBug(spriteScale);
     this.availabilityWorkstation = new AvailabilityWorkstation({ groundY });
+    this.hammer = new Hammer();
   }
 
   render(scene) {
@@ -157,10 +163,14 @@ export class Renderer {
         this.deployBugButton.draw(ctx, bounds, obstacle.color, obstacle.hit);
       } else if (obstacle.kind === 'cable') {
         this.drawCable(bounds, obstacle.color, obstacle.hit);
+      } else if (obstacle.kind === 'scroll-hitch') {
+        this.scrollHitch.draw(ctx, bounds, obstacle.color, obstacle.hit, elapsedSeconds);
       } else if (obstacle.kind === 'power-strip') {
         this.drawPowerStrip(bounds, obstacle.color, obstacle.hit);
       } else if (obstacle.kind === 'cart') {
         this.drawCart(bounds, obstacle.color, obstacle.hit);
+      } else if (obstacle.kind === 'sticky-bug') {
+        this.stickyBug.draw(ctx, bounds, obstacle.color, obstacle.hit);
       } else if (obstacle.kind === 'server') {
         this.drawServer(bounds, obstacle.color, obstacle.hit);
       } else if (obstacle.kind === 'cache') {
@@ -170,7 +180,7 @@ export class Renderer {
         ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
       }
 
-      if (bugTrackActive) {
+      if (bugTrackActive && obstacle.kind !== 'sticky-bug') {
         this.drawBugDetails(bounds, obstacle);
       }
 
@@ -208,7 +218,7 @@ export class Renderer {
     ctx.fillRect(player.x + 8 * s, player.y + 72 * s, 18 * s, 24 * s);
     ctx.fillRect(player.x + 42 * s, player.y + 72 * s, 18 * s, 24 * s);
     if (track?.id === 'error-budget') {
-      this.drawHammer(player, hammerStrike);
+      this.hammer.draw(ctx, player, hammerStrike, this.spriteScale);
     }
     ctx.restore();
   }
@@ -337,50 +347,6 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawHammer(player, hammerStrike) {
-    const { ctx } = this;
-    const s = this.spriteScale;
-    const progress = hammerStrike ? 1 - hammerStrike.timer / hammerStrike.duration : 0;
-    const eased = 1 - (1 - progress) * (1 - progress);
-    const angle = hammerStrike ? -0.95 + eased * 2.1 : -0.42;
-
-    ctx.save();
-    ctx.translate(player.x + 54 * s, player.y + 40 * s);
-    ctx.rotate(angle);
-    ctx.fillStyle = '#7b4c20';
-    ctx.fillRect(-4 * s, -2 * s, 12 * s, 58 * s);
-    ctx.fillStyle = '#a86a2b';
-    ctx.fillRect(-2 * s, 2 * s, 8 * s, 48 * s);
-    ctx.fillStyle = '#b8c6d6';
-    ctx.fillRect(-14 * s, -14 * s, 30 * s, 16 * s);
-    ctx.fillStyle = '#7c8ca0';
-    ctx.fillRect(10 * s, -14 * s, 8 * s, 16 * s);
-    ctx.fillStyle = '#dbe7f2';
-    ctx.fillRect(-10 * s, -10 * s, 16 * s, 6 * s);
-    ctx.restore();
-
-    if (!hammerStrike || hammerStrike.targetX == null || hammerStrike.targetY == null) {
-      return;
-    }
-
-    const burst = 1 - hammerStrike.timer / hammerStrike.duration;
-    ctx.save();
-    ctx.strokeStyle = `rgba(255, 212, 102, ${1 - burst * 0.65})`;
-    ctx.lineWidth = 4 * s;
-    for (let index = 0; index < 6; index += 1) {
-      const angleStep = (Math.PI * 2 * index) / 6;
-      const radius = (18 + burst * 18) * s;
-      ctx.beginPath();
-      ctx.moveTo(hammerStrike.targetX, hammerStrike.targetY);
-      ctx.lineTo(
-        hammerStrike.targetX + Math.cos(angleStep) * radius,
-        hammerStrike.targetY + Math.sin(angleStep) * radius,
-      );
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
   drawHammerImpact(bounds, squashTimer) {
     const { ctx } = this;
     const s = this.spriteScale;
@@ -397,6 +363,212 @@ export class Renderer {
 
     ctx.fillStyle = `rgba(31, 39, 57, ${impactRatio * 0.75})`;
     ctx.fillRect(bounds.x + bounds.width * 0.18, bounds.y + bounds.height * 0.54, bounds.width * 0.64, (8 + pulse * 8) * s);
+    ctx.restore();
+  }
+
+  drawScrollHitch(bounds, color, hit, elapsedSeconds = 0) {
+    const { ctx } = this;
+    const s = this.spriteScale;
+    ctx.save();
+    ctx.globalAlpha = hit ? 0.45 : 1;
+
+    const x = bounds.x;
+    const y = bounds.y;
+    const w = bounds.width;
+    const h = bounds.height;
+    const radius = Math.min(h * 0.5, 10 * s);
+
+    // Track (rounded gutter)
+    const drawRoundedRect = (rx, ry, rw, rh, rr) => {
+      ctx.beginPath();
+      ctx.moveTo(rx + rr, ry);
+      ctx.lineTo(rx + rw - rr, ry);
+      ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rr);
+      ctx.lineTo(rx + rw, ry + rh - rr);
+      ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rr, ry + rh);
+      ctx.lineTo(rx + rr, ry + rh);
+      ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rr);
+      ctx.lineTo(rx, ry + rr);
+      ctx.quadraticCurveTo(rx, ry, rx + rr, ry);
+      ctx.closePath();
+    };
+
+    ctx.fillStyle = '#1d2636';
+    drawRoundedRect(x, y, w, h, radius);
+    ctx.fill();
+    ctx.strokeStyle = '#3c4d68';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // End-cap arrow buttons
+    const cap = Math.min(h, 18 * s);
+    ctx.fillStyle = '#2a3548';
+    drawRoundedRect(x + 1, y + 1, cap, h - 2, radius - 1);
+    ctx.fill();
+    drawRoundedRect(x + w - cap - 1, y + 1, cap, h - 2, radius - 1);
+    ctx.fill();
+
+    ctx.fillStyle = '#aab7ca';
+    const arrowSize = h * 0.28;
+    const arrowY = y + h * 0.5;
+    // left arrow
+    ctx.beginPath();
+    ctx.moveTo(x + cap * 0.35, arrowY);
+    ctx.lineTo(x + cap * 0.7, arrowY - arrowSize);
+    ctx.lineTo(x + cap * 0.7, arrowY + arrowSize);
+    ctx.closePath();
+    ctx.fill();
+    // right arrow
+    ctx.beginPath();
+    ctx.moveTo(x + w - cap * 0.35, arrowY);
+    ctx.lineTo(x + w - cap * 0.7, arrowY - arrowSize);
+    ctx.lineTo(x + w - cap * 0.7, arrowY + arrowSize);
+    ctx.closePath();
+    ctx.fill();
+
+    // Thumb — hitching back and forth inside the track
+    const trackInsetX = cap + 4 * s;
+    const trackWidth = w - (trackInsetX * 2);
+    const thumbWidth = Math.max(trackWidth * 0.32, 26 * s);
+    const slackWidth = Math.max(0, trackWidth - thumbWidth);
+    const hitchPhase = (Math.sin(elapsedSeconds * 14) * 0.5) + 0.5;
+    const stutter = Math.sin(elapsedSeconds * 42) * 1.6 * s;
+    const thumbX = x + trackInsetX + slackWidth * hitchPhase + stutter;
+    const thumbY = y + 3 * s;
+    const thumbH = h - 6 * s;
+    const thumbR = Math.min(thumbH * 0.5, 6 * s);
+
+    // Thumb shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    drawRoundedRect(thumbX, thumbY + 2 * s, thumbWidth, thumbH, thumbR);
+    ctx.fill();
+
+    // Thumb body — warm amber to read as "bug"
+    const grad = ctx.createLinearGradient(thumbX, thumbY, thumbX, thumbY + thumbH);
+    grad.addColorStop(0, '#ffe1a4');
+    grad.addColorStop(1, color);
+    ctx.fillStyle = grad;
+    drawRoundedRect(thumbX, thumbY, thumbWidth, thumbH, thumbR);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(60, 40, 10, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Grip lines on the thumb
+    ctx.strokeStyle = 'rgba(60, 40, 10, 0.55)';
+    ctx.lineWidth = 1.5;
+    const gripCenter = thumbX + thumbWidth * 0.5;
+    for (let i = -1; i <= 1; i += 1) {
+      const gx = gripCenter + i * 4 * s;
+      ctx.beginPath();
+      ctx.moveTo(gx, thumbY + thumbH * 0.28);
+      ctx.lineTo(gx, thumbY + thumbH * 0.72);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  drawScrollHitch(bounds, color, hit, elapsedSeconds = 0) {
+    const { ctx } = this;
+    const s = this.spriteScale;
+    ctx.save();
+    ctx.globalAlpha = hit ? 0.45 : 1;
+
+    const x = bounds.x;
+    const y = bounds.y;
+    const w = bounds.width;
+    const h = bounds.height;
+    const radius = Math.min(h * 0.5, 10 * s);
+
+    // Track (rounded gutter)
+    const drawRoundedRect = (rx, ry, rw, rh, rr) => {
+      ctx.beginPath();
+      ctx.moveTo(rx + rr, ry);
+      ctx.lineTo(rx + rw - rr, ry);
+      ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rr);
+      ctx.lineTo(rx + rw, ry + rh - rr);
+      ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rr, ry + rh);
+      ctx.lineTo(rx + rr, ry + rh);
+      ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rr);
+      ctx.lineTo(rx, ry + rr);
+      ctx.quadraticCurveTo(rx, ry, rx + rr, ry);
+      ctx.closePath();
+    };
+
+    ctx.fillStyle = '#1d2636';
+    drawRoundedRect(x, y, w, h, radius);
+    ctx.fill();
+    ctx.strokeStyle = '#3c4d68';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // End-cap arrow buttons
+    const cap = Math.min(h, 18 * s);
+    ctx.fillStyle = '#2a3548';
+    drawRoundedRect(x + 1, y + 1, cap, h - 2, radius - 1);
+    ctx.fill();
+    drawRoundedRect(x + w - cap - 1, y + 1, cap, h - 2, radius - 1);
+    ctx.fill();
+
+    ctx.fillStyle = '#aab7ca';
+    const arrowSize = h * 0.28;
+    const arrowY = y + h * 0.5;
+    // left arrow
+    ctx.beginPath();
+    ctx.moveTo(x + cap * 0.35, arrowY);
+    ctx.lineTo(x + cap * 0.7, arrowY - arrowSize);
+    ctx.lineTo(x + cap * 0.7, arrowY + arrowSize);
+    ctx.closePath();
+    ctx.fill();
+    // right arrow
+    ctx.beginPath();
+    ctx.moveTo(x + w - cap * 0.35, arrowY);
+    ctx.lineTo(x + w - cap * 0.7, arrowY - arrowSize);
+    ctx.lineTo(x + w - cap * 0.7, arrowY + arrowSize);
+    ctx.closePath();
+    ctx.fill();
+
+    // Thumb — hitching back and forth inside the track
+    const trackInsetX = cap + 4 * s;
+    const trackWidth = w - (trackInsetX * 2);
+    const thumbWidth = Math.max(trackWidth * 0.32, 26 * s);
+    const slackWidth = Math.max(0, trackWidth - thumbWidth);
+    const hitchPhase = (Math.sin(elapsedSeconds * 14) * 0.5) + 0.5;
+    const stutter = Math.sin(elapsedSeconds * 42) * 1.6 * s;
+    const thumbX = x + trackInsetX + slackWidth * hitchPhase + stutter;
+    const thumbY = y + 3 * s;
+    const thumbH = h - 6 * s;
+    const thumbR = Math.min(thumbH * 0.5, 6 * s);
+
+    // Thumb shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    drawRoundedRect(thumbX, thumbY + 2 * s, thumbWidth, thumbH, thumbR);
+    ctx.fill();
+
+    // Thumb body — warm amber to read as "bug"
+    const grad = ctx.createLinearGradient(thumbX, thumbY, thumbX, thumbY + thumbH);
+    grad.addColorStop(0, '#ffe1a4');
+    grad.addColorStop(1, color);
+    ctx.fillStyle = grad;
+    drawRoundedRect(thumbX, thumbY, thumbWidth, thumbH, thumbR);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(60, 40, 10, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Grip lines on the thumb
+    ctx.strokeStyle = 'rgba(60, 40, 10, 0.55)';
+    ctx.lineWidth = 1.5;
+    const gripCenter = thumbX + thumbWidth * 0.5;
+    for (let i = -1; i <= 1; i += 1) {
+      const gx = gripCenter + i * 4 * s;
+      ctx.beginPath();
+      ctx.moveTo(gx, thumbY + thumbH * 0.28);
+      ctx.lineTo(gx, thumbY + thumbH * 0.72);
+      ctx.stroke();
+    }
+
     ctx.restore();
   }
 
