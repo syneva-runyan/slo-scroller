@@ -9,9 +9,24 @@
  * overhead on windup and crashes down on strike.
  */
 export class Hammer {
+  static WINDUP_PHASE = 'windup';
+
+  static STRIKE_PHASE = 'strike';
+
+  static STRIKE_SECONDS = 0.22;
+
+  static WINDUP_RAMP_SECONDS = 0.22;
+
+  // Angles are world-frame shaft rotations around the player's hand.
+  static REST_ANGLE = 0.55;
+
+  static MAX_WINDUP_ANGLE = -0.55;
+
+  static END_STRIKE_ANGLE = 1.7;
+
   draw(ctx, player, hammerStrike, spriteScale) {
     const s = spriteScale;
-    const angle = hammerStrike?.angle ?? 0.5;
+    const angle = hammerStrike?.angle ?? Hammer.REST_ANGLE;
     const shaftLen = 58 * s;
 
     ctx.save();
@@ -42,7 +57,7 @@ export class Hammer {
       return;
     }
 
-    const burst = hammerStrike.phase === 'strike'
+    const burst = hammerStrike.phase === Hammer.STRIKE_PHASE
       ? Math.min(1, hammerStrike.elapsed / hammerStrike.duration)
       : 0;
     ctx.save();

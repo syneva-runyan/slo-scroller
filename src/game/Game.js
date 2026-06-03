@@ -28,15 +28,6 @@ const HEIGHT = 720;
 const GROUND_Y = 560;
 const MAX_DELTA_SECONDS = 0.033;
 const PLAYER_X = 180;
-const HAMMER_STRIKE_SECONDS = 0.22;
-const HAMMER_WINDUP_RAMP_SECONDS = 0.22;
-// Hammer is drawn with its head at the tip of the shaft, pivoting at the
-// player's hand. Angles below are world-frame rotations of that shaft:
-//   negative => head rotates back/up (overhead toward the player's back)
-//   positive => head rotates forward/down (toward the obstacles)
-const HAMMER_REST_ANGLE = 0.55;        // resting forward at the player's side
-const HAMMER_MAX_WINDUP_ANGLE = -0.55; // head cocked up and back over the head
-const HAMMER_END_STRIKE_ANGLE = 1.7;   // head whipped down and forward to the ground
 // Scale up sprites on narrow screens so they remain legible. Formula keeps
 // things at natural size on desktop (>= 720px) and scales up to 1.75× on
 // the smallest phones (~375px).
@@ -270,7 +261,7 @@ export class Game {
 
       if (hammerBounds && intersects(hammerBounds, obstacle.getBounds())) {
         obstacle.hit = true;
-        obstacle.squashTimer = HAMMER_STRIKE_SECONDS;
+        obstacle.squashTimer = Hammer.STRIKE_SECONDS;
         this.hammerStrike.connected = true;
         this.hammerStrike.targetX = obstacle.x + obstacle.width * 0.5;
         this.hammerStrike.targetY = obstacle.groundY - obstacle.height * 0.45;
@@ -512,10 +503,10 @@ export class Game {
     }
 
     this.hammerStrike = {
-      phase: 'windup',
+      phase: Hammer.WINDUP_PHASE,
       elapsed: 0,
-      duration: HAMMER_WINDUP_RAMP_SECONDS,
-      angle: HAMMER_REST_ANGLE,
+      duration: Hammer.WINDUP_RAMP_SECONDS,
+      angle: Hammer.REST_ANGLE,
       connected: false,
       targetX: null,
       targetY: null,
@@ -535,20 +526,20 @@ export class Game {
     const holding = this.input.isHolding();
     const released = this.input.consumeHoldRelease();
 
-    if (this.hammerStrike?.phase === 'windup') {
+    if (this.hammerStrike?.phase === Hammer.WINDUP_PHASE) {
       this.hammerStrike.elapsed = Math.min(
-        HAMMER_WINDUP_RAMP_SECONDS,
+        Hammer.WINDUP_RAMP_SECONDS,
         this.hammerStrike.elapsed + deltaSeconds,
       );
-      const t = this.hammerStrike.elapsed / HAMMER_WINDUP_RAMP_SECONDS;
-      this.hammerStrike.angle = HAMMER_REST_ANGLE
-        + (HAMMER_MAX_WINDUP_ANGLE - HAMMER_REST_ANGLE) * t;
+      const t = this.hammerStrike.elapsed / Hammer.WINDUP_RAMP_SECONDS;
+      this.hammerStrike.angle = Hammer.REST_ANGLE
+        + (Hammer.MAX_WINDUP_ANGLE - Hammer.REST_ANGLE) * t;
       if (released || !holding) {
         this.sfx.playStrike();
         this.hammerStrike = {
-          phase: 'strike',
+          phase: Hammer.STRIKE_PHASE,
           elapsed: 0,
-          duration: HAMMER_STRIKE_SECONDS,
+          duration: Hammer.STRIKE_SECONDS,
           startAngle: this.hammerStrike.angle,
           angle: this.hammerStrike.angle,
           connected: false,
@@ -556,27 +547,27 @@ export class Game {
           targetY: null,
         };
       }
-    } else if (this.hammerStrike?.phase === 'strike') {
+    } else if (this.hammerStrike?.phase === Hammer.STRIKE_PHASE) {
       this.hammerStrike.elapsed = Math.min(
-        HAMMER_STRIKE_SECONDS,
+        Hammer.STRIKE_SECONDS,
         this.hammerStrike.elapsed + deltaSeconds,
       );
-      const raw = this.hammerStrike.elapsed / HAMMER_STRIKE_SECONDS;
+      const raw = this.hammerStrike.elapsed / Hammer.STRIKE_SECONDS;
       const eased = 1 - (1 - raw) * (1 - raw); // ease-out quad
       this.hammerStrike.angle = this.hammerStrike.startAngle
-        + (HAMMER_END_STRIKE_ANGLE - this.hammerStrike.startAngle) * eased;
-      if (this.hammerStrike.elapsed >= HAMMER_STRIKE_SECONDS) {
+        + (Hammer.END_STRIKE_ANGLE - this.hammerStrike.startAngle) * eased;
+      if (this.hammerStrike.elapsed >= Hammer.STRIKE_SECONDS) {
         this.hammerStrike = null;
       }
     } else if (holding) {
       // Begin a fresh windup the moment the user starts holding.
       this.startHammerSwing();
-      this.sfx.playWindup({ rampSeconds: HAMMER_WINDUP_RAMP_SECONDS });
+      this.sfx.playWindup({ rampSeconds: Hammer.WINDUP_RAMP_SECONDS });
     }
   }
 
   getHammerBounds() {
-    if (!this.hammerStrike || this.hammerStrike.phase !== 'strike' || this.hammerStrike.connected) {
+    if (!this.hammerStrike || this.hammerStrike.phase !== Hammer.STRIKE_PHASE || this.hammerStrike.connected) {
       return null;
     }
 
