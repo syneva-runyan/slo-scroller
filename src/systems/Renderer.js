@@ -5,7 +5,10 @@ const FLOOR_SHADOW = '#b6c0cb';
 
 import { DeployBugButton } from './collisionItems/DeployBugButton.js';
 import { Cache } from './collisionItems/Cache.js';
+import { ScrollHitch } from './collisionItems/ScrollHitch.js';
+import { StickyBug } from './collisionItems/StickyBug.js';
 import { AvailabilityWorkstation } from './AvailabilityWorkstation.js';
+import { Hammer } from './Hammer.js';
 import { isAvailabilityTrack, isAIHallucinationTrack } from '../game/trackUtils.js';
 
 export class Renderer {
@@ -17,7 +20,10 @@ export class Renderer {
     this.spriteScale = spriteScale;
     this.deployBugButton = new DeployBugButton();
     this.cache = new Cache(spriteScale);
+    this.scrollHitch = new ScrollHitch(spriteScale);
+    this.stickyBug = new StickyBug(spriteScale);
     this.availabilityWorkstation = new AvailabilityWorkstation({ groundY });
+    this.hammer = new Hammer();
   }
 
   render(scene) {
@@ -157,10 +163,14 @@ export class Renderer {
         this.deployBugButton.draw(ctx, bounds, obstacle.color, obstacle.hit);
       } else if (obstacle.kind === 'cable') {
         this.drawCable(bounds, obstacle.color, obstacle.hit);
+      } else if (obstacle.kind === 'scroll-hitch') {
+        this.scrollHitch.draw(ctx, bounds, obstacle.color, obstacle.hit, elapsedSeconds);
       } else if (obstacle.kind === 'power-strip') {
         this.drawPowerStrip(bounds, obstacle.color, obstacle.hit);
       } else if (obstacle.kind === 'cart') {
         this.drawCart(bounds, obstacle.color, obstacle.hit);
+      } else if (obstacle.kind === 'sticky-bug') {
+        this.stickyBug.draw(ctx, bounds, obstacle.color, obstacle.hit);
       } else if (obstacle.kind === 'server') {
         this.drawServer(bounds, obstacle.color, obstacle.hit);
       } else if (obstacle.kind === 'cache') {
@@ -170,7 +180,7 @@ export class Renderer {
         ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
       }
 
-      if (bugTrackActive) {
+      if (bugTrackActive && obstacle.kind !== 'sticky-bug') {
         this.drawBugDetails(bounds, obstacle);
       }
 
@@ -208,7 +218,7 @@ export class Renderer {
     ctx.fillRect(player.x + 8 * s, player.y + 72 * s, 18 * s, 24 * s);
     ctx.fillRect(player.x + 42 * s, player.y + 72 * s, 18 * s, 24 * s);
     if (track?.id === 'error-budget') {
-      this.drawHammer(player, hammerStrike);
+      this.hammer.draw(ctx, player, hammerStrike, this.spriteScale);
     }
     ctx.restore();
   }
@@ -334,50 +344,6 @@ export class Renderer {
     ctx.arc(bounds.x + bounds.width * 0.42, bounds.y + bounds.height * 0.36, 2.2 * s, 0, Math.PI * 2);
     ctx.arc(bounds.x + bounds.width * 0.62, bounds.y + bounds.height * 0.36, 2.2 * s, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
-  }
-
-  drawHammer(player, hammerStrike) {
-    const { ctx } = this;
-    const s = this.spriteScale;
-    const progress = hammerStrike ? 1 - hammerStrike.timer / hammerStrike.duration : 0;
-    const eased = 1 - (1 - progress) * (1 - progress);
-    const angle = hammerStrike ? -0.95 + eased * 2.1 : -0.42;
-
-    ctx.save();
-    ctx.translate(player.x + 54 * s, player.y + 40 * s);
-    ctx.rotate(angle);
-    ctx.fillStyle = '#7b4c20';
-    ctx.fillRect(-4 * s, -2 * s, 12 * s, 58 * s);
-    ctx.fillStyle = '#a86a2b';
-    ctx.fillRect(-2 * s, 2 * s, 8 * s, 48 * s);
-    ctx.fillStyle = '#b8c6d6';
-    ctx.fillRect(-14 * s, -14 * s, 30 * s, 16 * s);
-    ctx.fillStyle = '#7c8ca0';
-    ctx.fillRect(10 * s, -14 * s, 8 * s, 16 * s);
-    ctx.fillStyle = '#dbe7f2';
-    ctx.fillRect(-10 * s, -10 * s, 16 * s, 6 * s);
-    ctx.restore();
-
-    if (!hammerStrike || hammerStrike.targetX == null || hammerStrike.targetY == null) {
-      return;
-    }
-
-    const burst = 1 - hammerStrike.timer / hammerStrike.duration;
-    ctx.save();
-    ctx.strokeStyle = `rgba(255, 212, 102, ${1 - burst * 0.65})`;
-    ctx.lineWidth = 4 * s;
-    for (let index = 0; index < 6; index += 1) {
-      const angleStep = (Math.PI * 2 * index) / 6;
-      const radius = (18 + burst * 18) * s;
-      ctx.beginPath();
-      ctx.moveTo(hammerStrike.targetX, hammerStrike.targetY);
-      ctx.lineTo(
-        hammerStrike.targetX + Math.cos(angleStep) * radius,
-        hammerStrike.targetY + Math.sin(angleStep) * radius,
-      );
-      ctx.stroke();
-    }
     ctx.restore();
   }
 

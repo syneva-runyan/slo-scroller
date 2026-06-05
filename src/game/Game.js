@@ -12,6 +12,7 @@ import { getOrCreatePlayerId, getDisplayName } from './identity.js';
 import { submitScore, fetchRank, fetchTopScores, isLeaderboardEnabled } from '../services/leaderboard.js';
 import './Game.css';
 import { Input } from '../systems/Input.js';
+import { SoundEffects } from '../systems/SoundEffects.js';
 import { Renderer } from '../systems/Renderer.js';
 import { intersects } from '../systems/Collision.js';
 import { HUD } from '../ui/HUD/HUD.js';
@@ -27,7 +28,6 @@ const HEIGHT = 720;
 const GROUND_Y = 560;
 const MAX_DELTA_SECONDS = 0.033;
 const PLAYER_X = 180;
-const HAMMER_STRIKE_SECONDS = 0.24;
 // Scale up sprites on narrow screens so they remain legible. Formula keeps
 // things at natural size on desktop (>= 720px) and scales up to 1.75× on
 // the smallest phones (~375px).
@@ -82,6 +82,7 @@ export class Game {
     }
 
     this.input = new Input(window, this.canvas);
+    this.sfx = new SoundEffects();
     this.levelManager = new LevelManager(levelTracks);
     this.renderer = new Renderer(this.ctx, {
       width: WIDTH,
@@ -154,12 +155,7 @@ export class Game {
     this.elapsedSeconds = updateElapsedSeconds(this.elapsedSeconds, deltaSeconds, this.state);
     this.powerTripTimer = Math.max(0, this.powerTripTimer - deltaSeconds);
     const currentTrack = this.levelManager.getCurrentTrack();
-    if (this.hammerStrike) {
-      this.hammerStrike.timer = Math.max(0, this.hammerStrike.timer - deltaSeconds);
-      if (this.hammerStrike.timer === 0) {
-        this.hammerStrike = null;
-      }
-    }
+    this._updateHammerState(deltaSeconds, currentTrack);
 
     if (this.input.consumeJump()) {
       if (this.state === 'menu') {
@@ -167,11 +163,10 @@ export class Game {
       } else if (this.state === 'level-intro') {
         this.beginLevel(time);
       } else if (this.state === 'playing') {
-        if (currentTrack.id === 'error-budget') {
-          this.startHammerSwing();
-        } else {
+        if (currentTrack.id !== 'error-budget') {
           this.player.jump();
         }
+        // On the bug track, hammer is driven by hold/release, not by tap.
       } else if (this.state === 'level-complete') {
         if (this.levelManager.advance()) {
           this.state = 'level-intro';
@@ -266,10 +261,11 @@ export class Game {
 
       if (hammerBounds && intersects(hammerBounds, obstacle.getBounds())) {
         obstacle.hit = true;
-        obstacle.squashTimer = HAMMER_STRIKE_SECONDS;
+        obstacle.squashTimer = Hammer.STRIKE_SECONDS;
         this.hammerStrike.connected = true;
         this.hammerStrike.targetX = obstacle.x + obstacle.width * 0.5;
         this.hammerStrike.targetY = obstacle.groundY - obstacle.height * 0.45;
+        this.sfx.playSquash();
         continue;
       }
 
@@ -354,9 +350,11 @@ export class Game {
     if (this.controlsPill) {
       const isTouchDevice = navigator.maxTouchPoints > 0;
       this.controlsPill.textContent = isTouchDevice
-        ? 'Control: tap to jump'
+        ? track.id === 'error-budget'
+          ? 'Control: hold to wind up, release to smash'
+          : 'Control: tap to jump'
         : track.id === 'error-budget'
-          ? 'Control: press Space to swing the hammer'
+          ? 'Control: hold Space to wind up, release to smash'
           : isAIHallucinationTrack(track)
             ? 'Control: press Space to flag a hallucination — let grounded answers pass'
             : 'Control: press Space to jump';
@@ -505,20 +503,77 @@ export class Game {
     }
 
     this.hammerStrike = {
-      timer: HAMMER_STRIKE_SECONDS,
-      duration: HAMMER_STRIKE_SECONDS,
+      phase: Hammer.WINDUP_PHASE,
+      elapsed: 0,
+      duration: Hammer.WINDUP_RAMP_SECONDS,
+      angle: Hammer.REST_ANGLE,
       connected: false,
       targetX: null,
       targetY: null,
     };
   }
 
+  _updateHammerState(deltaSeconds, track) {
+    const isBugTrack = track?.id === 'error-budget';
+    if (!isBugTrack) {
+      this.hammerStrike = null;
+      return;
+    }
+    if (this.state !== 'playing') {
+      return;
+    }
+
+    const holding = this.input.isHolding();
+    const released = this.input.consumeHoldRelease();
+
+    if (this.hammerStrike?.phase === Hammer.WINDUP_PHASE) {
+      this.hammerStrike.elapsed = Math.min(
+        Hammer.WINDUP_RAMP_SECONDS,
+        this.hammerStrike.elapsed + deltaSeconds,
+      );
+      const t = this.hammerStrike.elapsed / Hammer.WINDUP_RAMP_SECONDS;
+      this.hammerStrike.angle = Hammer.REST_ANGLE
+        + (Hammer.MAX_WINDUP_ANGLE - Hammer.REST_ANGLE) * t;
+      if (released || !holding) {
+        this.sfx.playStrike();
+        this.hammerStrike = {
+          phase: Hammer.STRIKE_PHASE,
+          elapsed: 0,
+          duration: Hammer.STRIKE_SECONDS,
+          startAngle: this.hammerStrike.angle,
+          angle: this.hammerStrike.angle,
+          connected: false,
+          targetX: null,
+          targetY: null,
+        };
+      }
+    } else if (this.hammerStrike?.phase === Hammer.STRIKE_PHASE) {
+      this.hammerStrike.elapsed = Math.min(
+        Hammer.STRIKE_SECONDS,
+        this.hammerStrike.elapsed + deltaSeconds,
+      );
+      const raw = this.hammerStrike.elapsed / Hammer.STRIKE_SECONDS;
+      const eased = 1 - (1 - raw) * (1 - raw); // ease-out quad
+      this.hammerStrike.angle = this.hammerStrike.startAngle
+        + (Hammer.END_STRIKE_ANGLE - this.hammerStrike.startAngle) * eased;
+      if (this.hammerStrike.elapsed >= Hammer.STRIKE_SECONDS) {
+        this.hammerStrike = null;
+      }
+    } else if (holding) {
+      // Begin a fresh windup the moment the user starts holding.
+      this.startHammerSwing();
+      this.sfx.playWindup({ rampSeconds: Hammer.WINDUP_RAMP_SECONDS });
+    }
+  }
+
   getHammerBounds() {
-    if (!this.hammerStrike || this.hammerStrike.connected) {
+    if (!this.hammerStrike || this.hammerStrike.phase !== Hammer.STRIKE_PHASE || this.hammerStrike.connected) {
       return null;
     }
 
-    const progress = 1 - this.hammerStrike.timer / this.hammerStrike.duration;
+    const progress = Math.min(1, this.hammerStrike.elapsed / this.hammerStrike.duration);
+    // Only "live" during the part of the arc where the head is forward.
+    if (progress < 0.25 || progress > 0.95) return null;
     return {
       x: this.player.x + 28,
       y: this.player.y - 18,

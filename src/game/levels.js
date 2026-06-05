@@ -166,8 +166,8 @@ export const levelTracks = [
         spawnVariance: 0.24,
         allowedBreaches: 4,
         obstacleProfiles: [
-          { width: 70, height: 104, color: '#8e4c3f', label: 'sticky collision bug', kind: 'cart' },
-          { width: 132, height: 30, color: '#ffcf7b', label: 'scroll hitch bug', kind: 'cable' },
+          { width: 70, height: 104, color: '#8e4c3f', label: 'sticky collision bug', kind: 'sticky-bug' },
+          { width: 132, height: 30, color: '#ffcf7b', label: 'scroll hitch bug', kind: 'scroll-hitch' },
         ],
       },
       {
@@ -184,8 +184,8 @@ export const levelTracks = [
         spawnVariance: 0.26,
         allowedBreaches: 3,
         obstacleProfiles: [
-          { width: 74, height: 118, color: '#8e4c3f', label: 'sticky collision bug', kind: 'cart' },
-          { width: 144, height: 34, color: '#ffcf7b', label: 'scroll hitch bug', kind: 'cable' },
+          { width: 74, height: 118, color: '#8e4c3f', label: 'sticky collision bug', kind: 'sticky-bug' },
+          { width: 144, height: 34, color: '#ffcf7b', label: 'scroll hitch bug', kind: 'scroll-hitch' },
           { width: 62, height: 92, color: '#557b8f', label: 'render glitch bug', kind: 'server' },
         ],
       },
@@ -203,8 +203,8 @@ export const levelTracks = [
         spawnVariance: 0.28,
         allowedBreaches: 2,
         obstacleProfiles: [
-          { width: 74, height: 118, color: '#8e4c3f', label: 'sticky collision bug', kind: 'cart' },
-          { width: 144, height: 34, color: '#ffcf7b', label: 'scroll hitch bug', kind: 'cable' },
+          { width: 74, height: 118, color: '#8e4c3f', label: 'sticky collision bug', kind: 'sticky-bug' },
+          { width: 144, height: 34, color: '#ffcf7b', label: 'scroll hitch bug', kind: 'scroll-hitch' },
           { width: 68, height: 96, color: '#557b8f', label: 'render glitch bug', kind: 'server' },
         ],
       },
