@@ -154,6 +154,109 @@ export class SoundEffects {
     noise.stop(now + 0.18);
   }
 
+  playJump() {
+    if (this._muted) return;
+    const ctx = this._ensureContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(280, now);
+    osc.frequency.exponentialRampToValueAtTime(640, now + 0.09);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.16, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.14);
+  }
+
+  playBreach() {
+    if (this._muted) return;
+    const ctx = this._ensureContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(80, now + 0.16);
+    const oscGain = ctx.createGain();
+    oscGain.gain.setValueAtTime(0.0001, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.18, now + 0.008);
+    oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    osc.connect(oscGain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.2);
+
+    const noise = this._createNoiseSource(ctx, 0.1);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 900;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.0001, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.12, now + 0.004);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+    noise.connect(filter).connect(noiseGain).connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + 0.12);
+  }
+
+  playPickup() {
+    if (this._muted) return;
+    const ctx = this._ensureContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(720, now);
+    osc.frequency.exponentialRampToValueAtTime(1180, now + 0.08);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.13);
+  }
+
+  playResolve() {
+    if (this._muted) return;
+    const ctx = this._ensureContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const now = ctx.currentTime;
+    const first = ctx.createOscillator();
+    first.type = 'sine';
+    first.frequency.setValueAtTime(520, now);
+    const firstGain = ctx.createGain();
+    firstGain.gain.setValueAtTime(0.0001, now);
+    firstGain.gain.exponentialRampToValueAtTime(0.09, now + 0.01);
+    firstGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+    first.connect(firstGain).connect(ctx.destination);
+    first.start(now);
+    first.stop(now + 0.1);
+
+    const second = ctx.createOscillator();
+    second.type = 'sine';
+    second.frequency.setValueAtTime(780, now + 0.06);
+    const secondGain = ctx.createGain();
+    secondGain.gain.setValueAtTime(0.0001, now + 0.05);
+    secondGain.gain.exponentialRampToValueAtTime(0.08, now + 0.07);
+    secondGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+    second.connect(secondGain).connect(ctx.destination);
+    second.start(now + 0.06);
+    second.stop(now + 0.16);
+  }
+
   _createNoiseSource(ctx, durationSeconds) {
     const frameCount = Math.max(1, Math.floor(ctx.sampleRate * durationSeconds));
     const buffer = ctx.createBuffer(1, frameCount, ctx.sampleRate);

@@ -1,8 +1,147 @@
+import { Hammer } from '../systems/Hammer.js';
+
+const defaultTrackBehavior = {
+  onPlayingJump(game) {
+    game.player.jump();
+    game.sfx.playJump();
+  },
+  onUpdate() {},
+  getCollisionBounds() {
+    return null;
+  },
+  handleCollisionBoundsHit() {},
+  getControlText({ isTouchDevice }) {
+    return isTouchDevice ? 'Control: tap to jump' : 'Control: press Space to jump';
+  },
+};
+
+function startHammerSwing(game) {
+  if (game.hammerStrike) {
+    return;
+  }
+
+  game.hammerStrike = {
+    phase: Hammer.WINDUP_PHASE,
+    elapsed: 0,
+    duration: Hammer.WINDUP_RAMP_SECONDS,
+    angle: Hammer.REST_ANGLE,
+    connected: false,
+    targetX: null,
+    targetY: null,
+  };
+}
+
+function updateHammerState(game, deltaSeconds) {
+  if (game.state !== 'playing') {
+    return;
+  }
+
+  const holding = game.input.isHolding();
+  const released = game.input.consumeHoldRelease();
+
+  if (game.hammerStrike?.phase === Hammer.WINDUP_PHASE) {
+    game.hammerStrike.elapsed = Math.min(
+      Hammer.WINDUP_RAMP_SECONDS,
+      game.hammerStrike.elapsed + deltaSeconds,
+    );
+    const progress = game.hammerStrike.elapsed / Hammer.WINDUP_RAMP_SECONDS;
+    game.hammerStrike.angle = Hammer.REST_ANGLE
+      + (Hammer.MAX_WINDUP_ANGLE - Hammer.REST_ANGLE) * progress;
+    if (released || !holding) {
+      game.sfx.playStrike();
+      game.hammerStrike = {
+        phase: Hammer.STRIKE_PHASE,
+        elapsed: 0,
+        duration: Hammer.STRIKE_SECONDS,
+        startAngle: game.hammerStrike.angle,
+        angle: game.hammerStrike.angle,
+        connected: false,
+        targetX: null,
+        targetY: null,
+      };
+    }
+    return;
+  }
+
+  if (game.hammerStrike?.phase === Hammer.STRIKE_PHASE) {
+    game.hammerStrike.elapsed = Math.min(
+      Hammer.STRIKE_SECONDS,
+      game.hammerStrike.elapsed + deltaSeconds,
+    );
+    const raw = game.hammerStrike.elapsed / Hammer.STRIKE_SECONDS;
+    const eased = 1 - (1 - raw) * (1 - raw);
+    game.hammerStrike.angle = game.hammerStrike.startAngle
+      + (Hammer.END_STRIKE_ANGLE - game.hammerStrike.startAngle) * eased;
+    if (game.hammerStrike.elapsed >= Hammer.STRIKE_SECONDS) {
+      game.hammerStrike = null;
+    }
+    return;
+  }
+
+  if (holding) {
+    startHammerSwing(game);
+    game.sfx.playWindup({ rampSeconds: Hammer.WINDUP_RAMP_SECONDS });
+  }
+}
+
+function getHammerBounds(game) {
+  if (!game.hammerStrike
+      || game.hammerStrike.phase !== Hammer.STRIKE_PHASE
+      || game.hammerStrike.connected) {
+    return null;
+  }
+
+  const progress = Math.min(1, game.hammerStrike.elapsed / game.hammerStrike.duration);
+  if (progress < 0.25 || progress > 0.95) {
+    return null;
+  }
+
+  return {
+    x: game.player.x + 28,
+    y: game.player.y - 18,
+    width: 92 + progress * 54,
+    height: 132,
+  };
+}
+
+const errorBudgetTrackBehavior = {
+  ...defaultTrackBehavior,
+  onPlayingJump() {},
+  onUpdate(game, deltaSeconds) {
+    updateHammerState(game, deltaSeconds);
+  },
+  getCollisionBounds(game) {
+    return getHammerBounds(game);
+  },
+  handleCollisionBoundsHit(game, obstacle) {
+    obstacle.squashTimer = Hammer.STRIKE_SECONDS;
+    game.hammerStrike.connected = true;
+    game.hammerStrike.targetX = obstacle.x + obstacle.width * 0.5;
+    game.hammerStrike.targetY = obstacle.groundY - obstacle.height * 0.45;
+    game.sfx.playSquash();
+  },
+  getControlText({ isTouchDevice }) {
+    return isTouchDevice
+      ? 'Control: hold to wind up, release to smash'
+      : 'Control: hold Space to wind up, release to smash';
+  },
+};
+
+const aiTrackBehavior = {
+  ...defaultTrackBehavior,
+  getControlText({ isTouchDevice }) {
+    return isTouchDevice
+      ? 'Control: tap to flag a hallucination — let grounded answers pass'
+      : 'Control: press Space to flag a hallucination — let grounded answers pass';
+  },
+};
+
 export const levelTracks = [
   {
     id: 'availability',
     label: 'Availability',
     description: 'Availability measures how often a service is up and usable.',
+    behavior: defaultTrackBehavior,
     levels: [
       {
         id: 'availability-1',
@@ -71,6 +210,7 @@ export const levelTracks = [
     id: 'response-time',
     label: 'Response Time',
     description: 'Response-time SLOs measure how quickly a service answers a request.',
+    behavior: defaultTrackBehavior,
     levels: [
       {
         id: 'response-time-1',
@@ -151,6 +291,7 @@ export const levelTracks = [
     id: 'error-budget',
     label: 'Error Budget',
     description: 'An error budget is the amount of unreliability a service can spend while still meeting its SLO.',
+    behavior: errorBudgetTrackBehavior,
     levels: [
       {
         id: 'error-budget-1',
@@ -214,6 +355,7 @@ export const levelTracks = [
     id: 'ai-hallucination',
     label: 'AI Trust',
     description: 'Ship grounded answers; reject hallucinations.',
+    behavior: aiTrackBehavior,
     levels: [
       {
         id: 'ai-hallucination-1',
