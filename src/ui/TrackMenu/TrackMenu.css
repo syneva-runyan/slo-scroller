@@ -13,6 +13,38 @@
   gap: 8px;
 }
 
+.track-menu-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.track-menu-tab {
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(110, 207, 205, 0.24);
+  background: rgba(232, 241, 250, 0.05);
+  color: var(--surface-copy-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.track-menu-tab:hover {
+  border-color: rgba(110, 207, 205, 0.48);
+  background: rgba(232, 241, 250, 0.1);
+}
+
+.track-menu-tab.is-active {
+  border-color: rgba(110, 207, 205, 0.72);
+  background: rgba(110, 207, 205, 0.14);
+  color: var(--color-accent);
+}
+
 .track-menu-kicker {
   margin: 0;
   font-size: 0.8rem;
@@ -156,6 +188,10 @@
 @media (max-width: 720px) {
   .track-menu {
     border-radius: 18px;
+  }
+
+  .track-menu-tabs {
+    grid-template-columns: 1fr;
   }
 
   .track-menu-list {

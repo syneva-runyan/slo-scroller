@@ -21,7 +21,6 @@ import { GameHUDView } from '../ui/HUD/GameHUDView.js';
 import { OverlayView } from '../ui/OverlayView/OverlayView.js';
 import { TrackMenuView } from '../ui/TrackMenu/TrackMenuView.js';
 import { promptDisplayName } from '../ui/DisplayNamePrompt/DisplayNamePrompt.js';
-import { LeaderboardView } from '../ui/Leaderboard/LeaderboardView.js';
 import '../ui/DisplayNamePrompt/DisplayNamePrompt.css';
 
 const WIDTH = 1280;
@@ -60,7 +59,6 @@ export class Game {
         <div class="game-stage-area">
           <div class="game-stage"></div>
           <div class="game-pill game-controls-pill">Control: press Space to jump</div>
-          <div class="game-leaderboard-slot" hidden></div>
         </div>
       </div>
     `;
@@ -68,10 +66,6 @@ export class Game {
     this.menuContainer = this.shell.querySelector('.game-menu');
     this.stage = this.shell.querySelector('.game-stage');
     this.controlsPill = this.shell.querySelector('.game-controls-pill');
-    this.leaderboardSlot = this.shell.querySelector('.game-leaderboard-slot');
-    this.leaderboardView = new LeaderboardView();
-    this.leaderboardSlot.append(this.leaderboardView.root);
-    this.lastLeaderboardSignature = null;
     const isTouchDevice = navigator.maxTouchPoints > 0;
     this.controlsPill.textContent = isTouchDevice ? 'Control: tap to jump' : 'Control: press Space to jump';
     this.stage.append(this.canvas);
@@ -387,7 +381,6 @@ export class Game {
       elapsedSeconds: this.elapsedSeconds,
     });
     this.overlayView.render(overlay);
-    this.renderLeaderboardSlot();
     this.gameHudView.render({
       level,
       track,
@@ -418,35 +411,8 @@ export class Game {
       rollingWindowSeconds: this.availability.rollingWindowSeconds,
       targetPercentile: this.responseTime.targetPercentile,
       activeLevelId: level.id,
+      leaderboardData: this.state === 'level-complete' ? this.leaderboard : null,
     });
-  }
-
-  renderLeaderboardSlot() {
-    if (this.state !== 'level-complete') {
-      if (this.lastLeaderboardSignature !== null) {
-        this.lastLeaderboardSignature = null;
-        this.leaderboardSlot.hidden = true;
-        this.leaderboardView.root.replaceChildren();
-      }
-      return;
-    }
-
-    const data = this.leaderboard;
-    const signature = data == null
-      ? 'loading'
-      : JSON.stringify({ scores: data.scores, rank: data.rank });
-
-    if (signature === this.lastLeaderboardSignature) {
-      return;
-    }
-
-    this.lastLeaderboardSignature = signature;
-    this.leaderboardSlot.hidden = false;
-    if (data == null) {
-      this.leaderboardView.renderLoading();
-    } else {
-      this.leaderboardView.render(data.scores, data.rank);
-    }
   }
 
   beginLevel(time, options = {}) {
@@ -469,6 +435,7 @@ export class Game {
     this.resetTrackers();
     this.responseTime.primeForLevel(this.levelManager.getCurrentLevel());
     this.player.reset();
+    this.trackMenuView.setActiveTab('tracks');
   }
 
   spawnObstacle(level) {
@@ -507,6 +474,7 @@ export class Game {
     this.resetTrackers();
     this.responseTime.primeForLevel(this.levelManager.getCurrentLevel());
     this.player.reset();
+    this.trackMenuView.setActiveTab('tracks');
   }
 
   getTrackerForTrack(track) {
@@ -559,6 +527,7 @@ export class Game {
     }).then(([rank, scores]) => {
       this.leaderboard = { rank, scores };
       this.trackMenuView.invalidateLeaderboard();
+      this.trackMenuView.setActiveTab('scores');
     }).catch(console.error);
   }
 

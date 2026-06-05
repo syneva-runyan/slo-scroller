@@ -5,6 +5,8 @@ import { LeaderboardView } from '../Leaderboard/LeaderboardView.js';
 import { fetchTopScores } from '../../services/leaderboard.js';
 
 const WINDOW_OPTIONS = [4, 6, 8, 10, 12, 15];
+const TAB_TRACKS = 'tracks';
+const TAB_SCORES = 'scores';
 const PERCENTILE_OPTIONS = [
   { value: 0.5, label: 'p50' },
   { value: 0.9, label: 'p90' },
@@ -90,6 +92,27 @@ function createPercentileSettings(targetPercentile, onPercentileChange) {
   return panel;
 }
 
+function createTabs(activeTab, onSelectTab) {
+  const root = document.createElement('div');
+  root.className = 'track-menu-tabs';
+
+  const tabs = [
+    { id: TAB_TRACKS, label: 'Tracks' },
+    { id: TAB_SCORES, label: 'Top scores for track' },
+  ];
+
+  for (const tab of tabs) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `track-menu-tab${activeTab === tab.id ? ' is-active' : ''}`;
+    button.textContent = tab.label;
+    button.addEventListener('click', () => onSelectTab(tab.id));
+    root.append(button);
+  }
+
+  return root;
+}
+
 export class TrackMenuView {
   constructor(container, { onSelectTrack, onExperimentToggle, onRollingTimeWindowConfigChange, onPercentileChange }) {
     this.container = container;
@@ -104,10 +127,18 @@ export class TrackMenuView {
     this.leaderboardView = new LeaderboardView();
     this.lastLeaderboardTrackId = null;
     this.lastLeaderboardLevelId = null;
+    this.activeTab = TAB_TRACKS;
   }
 
-  _loadLeaderboard(trackId, levelId) {
-    if (trackId === this.lastLeaderboardTrackId && levelId === this.lastLeaderboardLevelId) {
+  setActiveTab(tabId) {
+    if (tabId === TAB_TRACKS || tabId === TAB_SCORES) {
+      this.activeTab = tabId;
+      this.lastSignature = '';
+    }
+  }
+
+  _loadLeaderboard(trackId, levelId, highlightedRank = null) {
+    if (trackId === this.lastLeaderboardTrackId && levelId === this.lastLeaderboardLevelId && highlightedRank == null) {
       return;
     }
     this.lastLeaderboardTrackId = trackId;
@@ -116,10 +147,26 @@ export class TrackMenuView {
     fetchTopScores({ trackId, levelId, limit: 5 })
       .then((scores) => {
         if (trackId === this.lastLeaderboardTrackId && levelId === this.lastLeaderboardLevelId) {
-          this.leaderboardView.render(scores);
+          this.leaderboardView.render(scores, highlightedRank);
         }
       })
       .catch(console.error);
+  }
+
+  _renderLeaderboard(leaderboardData, activeTrack, activeLevelId) {
+    if (!activeTrack || !activeLevelId) {
+      this.leaderboardView.render([]);
+      return;
+    }
+
+    if (leaderboardData?.scores) {
+      this.lastLeaderboardTrackId = activeTrack.id;
+      this.lastLeaderboardLevelId = activeLevelId;
+      this.leaderboardView.render(leaderboardData.scores, leaderboardData.rank);
+      return;
+    }
+
+    this._loadLeaderboard(activeTrack.id, activeLevelId);
   }
 
   invalidateLeaderboard() {
@@ -127,7 +174,16 @@ export class TrackMenuView {
     this.lastLeaderboardLevelId = null;
   }
 
-  render({ tracks, showExperimentToggle, experimentMode, rollingWindowSeconds, activeLevelId, activeTrackId, targetPercentile }) {
+  render({
+    tracks,
+    showExperimentToggle,
+    experimentMode,
+    rollingWindowSeconds,
+    activeLevelId,
+    activeTrackId,
+    targetPercentile,
+    leaderboardData,
+  }) {
     const signature = JSON.stringify({
       tracks,
       showExperimentToggle,
@@ -135,12 +191,11 @@ export class TrackMenuView {
       rollingWindowSeconds,
       activeTrackId,
       targetPercentile,
+      activeTab: this.activeTab,
+      leaderboardData,
     });
     const activeTrack = tracks.find((t) => t.active) ?? tracks[0];
-
-    if (activeLevelId && activeTrack) {
-      this._loadLeaderboard(activeTrack.id, activeLevelId);
-    }
+    this._renderLeaderboard(leaderboardData, activeTrack, activeLevelId);
 
     if (signature === this.lastSignature) {
       return;
@@ -156,12 +211,18 @@ export class TrackMenuView {
     }
 
     this.lastSignature = signature;
+    const bodyChildren = this.activeTab === TAB_SCORES
+      ? [this.leaderboardView.root]
+      : [
+          createTrackMenuList(tracks, { onSelectTrack: this.onSelectTrack }),
+          ...settingsPanels,
+          ...(showExperimentToggle ? [createExperimentToggle(experimentMode, this.onExperimentToggle)] : []),
+        ];
+
     this.root.replaceChildren(
       createTrackMenuHeader(activeTrack),
-      createTrackMenuList(tracks, { onSelectTrack: this.onSelectTrack }),
-      this.leaderboardView.root,
-      ...settingsPanels,
-      ...(showExperimentToggle ? [createExperimentToggle(experimentMode, this.onExperimentToggle)] : []),
+      createTabs(this.activeTab, (tabId) => this.setActiveTab(tabId)),
+      ...bodyChildren,
     );
   }
 }
