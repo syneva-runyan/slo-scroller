@@ -113,3 +113,4 @@ VITE_SUPABASE_ANON_KEY=<your-publishable-key>
 ```
 
 `.env.local` is gitignored. Never use the `service_role` key here.
+
